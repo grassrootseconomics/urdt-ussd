@@ -1,0 +1,12 @@
+MOUT add_guardian 1
+MOUT remove_guardian 2
+MOUT view_guardians 3
+MOUT back 0
+HALT
+INCMP _ 0
+INCMP add_guardian 1
+INCMP remove_guardian 2
+INCMP view_guardian 3
+
+
+

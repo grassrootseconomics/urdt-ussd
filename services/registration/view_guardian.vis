@@ -1,0 +1,8 @@
+CATCH incorrect_pin  flag_incorrect_pin  1
+CATCH view_guardian_pin flag_account_authorized 0
+CATCH guardian_list flag_account_authorized 1
+HALT
+
+
+
+

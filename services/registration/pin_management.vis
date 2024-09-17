@@ -5,4 +5,6 @@ MOUT back 0
 HALT
 INCMP _ 0
 INCMP old_pin  1
+INCMP pin_guard  3
+
 

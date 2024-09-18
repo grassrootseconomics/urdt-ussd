@@ -1115,7 +1115,6 @@ func TestCheckAccountStatus(t *testing.T) {
 	typ := utils.DATA_TRACKING_ID
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//nn := tt.status
 			mockCreateAccountService.On("CheckAccountStatus", string(tt.input)).Return(tt.status, nil)
 
 			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_STATUS, []byte(tt.status)).Return(nil).Maybe()

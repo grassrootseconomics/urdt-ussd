@@ -349,7 +349,7 @@ func TestSaveGender(t *testing.T) {
 			}
 
 			// Call the method
-			_, err := h.SaveGender(ctx, "someSym", tt.input)
+			_, err := h.SaveGender(ctx, "save_gender", tt.input)
 
 			// Assert no error
 			assert.NoError(t, err)
@@ -538,9 +538,9 @@ func TestSetLanguage(t *testing.T) {
 	}
 	// Define test cases
 	tests := []struct {
-		name                string
-		execPath            []string
-		expectedResult      resource.Result
+		name           string
+		execPath       []string
+		expectedResult resource.Result
 	}{
 		{
 			name:     "Set Default Language (English)",
@@ -1101,17 +1101,26 @@ func TestCheckAccountStatus(t *testing.T) {
 				FlagReset: []uint32{flag_account_pending},
 			},
 		},
+		{
+			name:   "Test when account status is not a success",
+			input:  []byte("TrackingId12"),
+			status: "REVERTED",
+			expectedResult: resource.Result{
+				FlagSet:   []uint32{flag_account_success},
+				FlagReset: []uint32{flag_account_pending},
+			},
+		},
 	}
 
 	typ := utils.DATA_TRACKING_ID
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			//nn := tt.status
+			mockCreateAccountService.On("CheckAccountStatus", string(tt.input)).Return(tt.status, nil)
 
+			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_STATUS, []byte(tt.status)).Return(nil).Maybe()
 			// Define expected interactions with the mock
 			mockDataStore.On("ReadEntry", ctx, sessionId, typ).Return(tt.input, nil)
-
-			mockCreateAccountService.On("CheckAccountStatus", string(tt.input)).Return(tt.status, nil)
-			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_STATUS, []byte(tt.status)).Return(nil)
 
 			// Call the method under test
 			res, _ := h.CheckAccountStatus(ctx, "check_status", tt.input)
@@ -1289,7 +1298,6 @@ func TestInitiateTransaction(t *testing.T) {
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_PUBLIC_KEY).Return(tt.PublicKey, nil)
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_AMOUNT).Return(tt.Amount, nil)
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_RECIPIENT).Return(tt.Recipient, nil)
-			//mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_AMOUNT, []byte("")).Return(nil)
 
 			// Call the method under test
 			res, _ := h.InitiateTransaction(ctx, "transaction_reset_amount", tt.input)
@@ -1480,7 +1488,7 @@ func TestValidateAmount(t *testing.T) {
 	if err != nil {
 		t.Logf(err.Error())
 	}
-	//flag_invalid_amount, _ := fm.parser.GetFlag("flag_invalid_amount")
+	flag_invalid_amount, _ := fm.parser.GetFlag("flag_invalid_amount")
 	mockDataStore := new(mocks.MockUserDataStore)
 	mockCreateAccountService := new(mocks.MockAccountService)
 
@@ -1509,26 +1517,26 @@ func TestValidateAmount(t *testing.T) {
 				Content: "0.001",
 			},
 		},
-		// {
-		// 	name:      "Test with amount larger than balance",
-		// 	input:     []byte("0.02"),
-		// 	balance:   "0.003 CELO",
-		// 	publicKey: []byte("0xrqeqrequuq"),
-		// 	expectedResult: resource.Result{
-		// 		FlagSet: []uint32{flag_invalid_amount},
-		// 		Content: "0.02",
-		// 	},
-		// },
-		// {
-		// 	name:      "Test with invalid amount",
-		// 	input:     []byte("0.02ms"),
-		// 	balance:   "0.003 CELO",
-		// 	publicKey: []byte("0xrqeqrequuq"),
-		// 	expectedResult: resource.Result{
-		// 		FlagSet: []uint32{flag_invalid_amount},
-		// 		Content: "0.02ms",
-		// 	},
-		// },
+		{
+			name:      "Test with amount larger than balance",
+			input:     []byte("0.02"),
+			balance:   "0.003 CELO",
+			publicKey: []byte("0xrqeqrequuq"),
+			expectedResult: resource.Result{
+				FlagSet: []uint32{flag_invalid_amount},
+				Content: "0.02",
+			},
+		},
+		{
+			name:      "Test with invalid amount",
+			input:     []byte("0.02ms"),
+			balance:   "0.003 CELO",
+			publicKey: []byte("0xrqeqrequuq"),
+			expectedResult: resource.Result{
+				FlagSet: []uint32{flag_invalid_amount},
+				Content: "0.02ms",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1536,7 +1544,7 @@ func TestValidateAmount(t *testing.T) {
 
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_PUBLIC_KEY).Return(tt.publicKey, nil)
 			mockCreateAccountService.On("CheckBalance", string(tt.publicKey)).Return(tt.balance, nil)
-			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_AMOUNT, tt.input).Return(nil)
+			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_AMOUNT, tt.input).Return(nil).Maybe()
 
 			// Call the method under test
 			res, _ := h.ValidateAmount(ctx, "test_validate_amount", tt.input)
@@ -1812,11 +1820,19 @@ func TestConfirmPin(t *testing.T) {
 				FlagReset: []uint32{flag_pin_mismatch},
 			},
 		},
+		{
+			name:         "Test with different pin confirmation",
+			input:        []byte("1234"),
+			temporarypin: []byte("12345"),
+			expectedResult: resource.Result{
+				FlagSet: []uint32{flag_pin_mismatch},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up the expected behavior of the mock
-			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(tt.temporarypin)).Return(nil)
+			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(tt.temporarypin)).Return(nil).Maybe()
 
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_TEMPORARY_PIN).Return(tt.temporarypin, nil)
 

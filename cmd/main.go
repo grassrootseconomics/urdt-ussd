@@ -39,7 +39,7 @@ func getHandler(appFlags *asm.FlagParser, rs *resource.DbResource, pe *persist.P
 		return nil, err
 	}
 	ussdHandlers = ussdHandlers.WithPersister(pe)
-	rs.AddLocalFunc("select_language", ussdHandlers.SetLanguage)
+	rs.AddLocalFunc("set_language", ussdHandlers.SetLanguage)
 	rs.AddLocalFunc("create_account", ussdHandlers.CreateAccount)
 	rs.AddLocalFunc("save_pin", ussdHandlers.SavePin)
 	rs.AddLocalFunc("verify_pin", ussdHandlers.VerifyPin)

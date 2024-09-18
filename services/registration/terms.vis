@@ -1,5 +1,3 @@
-LOAD select_language 0
-RELOAD select_language
 MOUT yes 0
 MOUT no 1
 HALT

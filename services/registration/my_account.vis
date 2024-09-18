@@ -9,6 +9,7 @@ MOUT back 0
 HALT
 INCMP _ 0
 INCMP edit_profile 1
+INCMP change_language 2
 INCMP balances 3
 INCMP pin_management 5
 INCMP address 6

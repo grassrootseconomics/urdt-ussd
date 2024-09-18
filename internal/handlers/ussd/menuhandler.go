@@ -121,15 +121,15 @@ func (h *Handlers) Init(ctx context.Context, sym string, input []byte) (resource
 // SetLanguage sets the language across the menu
 func (h *Handlers) SetLanguage(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
-	var err error
 
-	inputStr := string(input)
-	switch inputStr {
-	case "0":
-		res.FlagSet = []uint32{state.FLAG_LANG}
+	sym, _ = h.st.Where()
+
+	switch sym {
+	case "set_default":
+		res.FlagSet = append(res.FlagSet, state.FLAG_LANG)
 		res.Content = "eng"
-	case "1":
-		res.FlagSet = []uint32{state.FLAG_LANG}
+	case "set_swa":
+		res.FlagSet = append(res.FlagSet, state.FLAG_LANG)
 		res.Content = "swa"
 	default:
 	}

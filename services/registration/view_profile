@@ -1,2 +1,2 @@
-My profile: 
-{{.get_profile_info}} 
+My profile:
+{{.get_profile_info}}

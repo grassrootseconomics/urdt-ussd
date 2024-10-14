@@ -18,12 +18,27 @@ import (
 	"git.grassecon.net/urdt/ussd/internal/handlers"
 	httpserver "git.grassecon.net/urdt/ussd/internal/http"
 	"git.grassecon.net/urdt/ussd/internal/storage"
+
+	"github.com/joho/godotenv"
+	"git.grassecon.net/urdt/ussd/initializers"
 )
 
 var (
 	logg      = logging.NewVanilla()
 	scriptDir = path.Join("services", "registration")
 )
+
+func init() {
+	initializers.LoadEnvVariables()
+	initializers.ConnectToDb()
+	initializers.SyncDatabase()
+
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
 
 func main() {
 	var dbDir string

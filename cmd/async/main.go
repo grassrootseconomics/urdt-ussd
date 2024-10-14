@@ -15,12 +15,27 @@ import (
 
 	"git.grassecon.net/urdt/ussd/internal/handlers"
 	"git.grassecon.net/urdt/ussd/internal/storage"
+
+	"git.grassecon.net/urdt/ussd/initializers"
+	"github.com/joho/godotenv"
 )
 
 var (
 	logg      = logging.NewVanilla()
 	scriptDir = path.Join("services", "registration")
 )
+
+func init() {
+	initializers.LoadEnvVariables()
+	initializers.ConnectToDb()
+	initializers.SyncDatabase()
+
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
 
 type asyncRequestParser struct {
 	sessionId string

@@ -150,6 +150,7 @@ func (h *Handlers) createAccountNoExist(ctx context.Context, sessionId string, r
 	data := map[utils.DataTyp]string{
 		utils.DATA_TRACKING_ID: trackingId,
 		utils.DATA_PUBLIC_KEY:  publicKey,
+		utils.DATA_ADDRESS:     sessionId,
 	}
 	for key, value := range data {
 		store := h.userdataStore
@@ -544,6 +545,7 @@ func (h *Handlers) CheckAccountStatus(ctx context.Context, sym string, input []b
 	if err != nil {
 		return res, err
 	}
+
 	okResponse, err = h.accountService.TrackAccountStatus(ctx, string(publicKey))
 	if err != nil {
 		res.FlagSet = append(res.FlagSet, flag_api_error)

@@ -57,7 +57,7 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                        "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                     },
                     {
                         "input": "1",
@@ -73,19 +73,19 @@
                     },
                     {
                         "input": "065656",
-                        "expectedContent": "Maximum amount: 0.003 CELO\nEnter amount:\n0:Back"
+                        "expectedContent": "{max_amount}\nEnter amount:\n0:Back"
                     },
                     {
-                        "input": "0.1",
-                        "expectedContent": "Amount 0.1 is invalid, please try again:\n1:retry\n9:Quit"
+                        "input": "10000000",
+                        "expectedContent": "Amount 10000000 is invalid, please try again:\n1:retry\n9:Quit"
                     },
                     {
                         "input": "1",
-                        "expectedContent": "Maximum amount: 0.003 CELO\nEnter amount:\n0:Back"
+                        "expectedContent": "{max_amount}\nEnter amount:\n0:Back"
                     },
                     {
-                        "input": "0.001",
-                        "expectedContent": "065656 will receive 0.001 from {public_key}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
+                        "input": "1.00",
+                        "expectedContent": "065656 will receive {send_amount} from {session_id}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
                     },
                     {
                         "input": "1222",
@@ -93,11 +93,11 @@
                     },
                     {
                         "input": "1",
-                        "expectedContent": "065656 will receive 0.001 from {public_key}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
+                        "expectedContent": "065656 will receive {send_amount} from {session_id}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
                     },
                     {
                         "input": "1234",
-                        "expectedContent": "Your request has been sent. 065656 will receive 0.001 from {public_key}."
+                        "expectedContent": "Your request has been sent. 065656 will receive {send_amount} from {session_id}."
                     }
                 ]
             },
@@ -106,7 +106,7 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                        "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                     },
                     {
                         "input": "4",
@@ -119,7 +119,7 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                        "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                     },
                     {
                         "input": "9",
@@ -132,7 +132,7 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                        "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                     },
                     {
                         "input": "3",

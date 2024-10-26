@@ -61,8 +61,8 @@ func (ls *LocalHandlerService) GetHandler(accountService server.AccountServiceIn
 	ussdHandlers = ussdHandlers.WithPersister(ls.Pe)
 	ls.DbRs.AddLocalFunc("set_language", ussdHandlers.SetLanguage)
 	ls.DbRs.AddLocalFunc("create_account", ussdHandlers.CreateAccount)
-	ls.DbRs.AddLocalFunc("save_pin", ussdHandlers.SavePin)
-	ls.DbRs.AddLocalFunc("verify_pin", ussdHandlers.VerifyPin)
+	ls.DbRs.AddLocalFunc("save_temporary_pin", ussdHandlers.SaveTemporaryPin)
+	ls.DbRs.AddLocalFunc("verify_create_pin", ussdHandlers.VerifyCreatePin)
 	ls.DbRs.AddLocalFunc("check_identifier", ussdHandlers.CheckIdentifier)
 	ls.DbRs.AddLocalFunc("check_account_status", ussdHandlers.CheckAccountStatus)
 	ls.DbRs.AddLocalFunc("authorize_account", ussdHandlers.Authorize)
@@ -89,11 +89,15 @@ func (ls *LocalHandlerService) GetHandler(accountService server.AccountServiceIn
 	ls.DbRs.AddLocalFunc("verify_yob", ussdHandlers.VerifyYob)
 	ls.DbRs.AddLocalFunc("reset_incorrect_date_format", ussdHandlers.ResetIncorrectYob)
 	ls.DbRs.AddLocalFunc("initiate_transaction", ussdHandlers.InitiateTransaction)
-	ls.DbRs.AddLocalFunc("save_temporary_pin", ussdHandlers.SaveTemporaryPin)
 	ls.DbRs.AddLocalFunc("verify_new_pin", ussdHandlers.VerifyNewPin)
 	ls.DbRs.AddLocalFunc("confirm_pin_change", ussdHandlers.ConfirmPinChange)
 	ls.DbRs.AddLocalFunc("quit_with_help", ussdHandlers.QuitWithHelp)
 	ls.DbRs.AddLocalFunc("fetch_custodial_balances", ussdHandlers.FetchCustodialBalances)
+	ls.DbRs.AddLocalFunc("set_default_voucher", ussdHandlers.SetDefaultVoucher)
+	ls.DbRs.AddLocalFunc("check_vouchers", ussdHandlers.CheckVouchers)
+	ls.DbRs.AddLocalFunc("get_vouchers", ussdHandlers.GetVoucherList)
+	ls.DbRs.AddLocalFunc("view_voucher", ussdHandlers.ViewVoucher)
+	ls.DbRs.AddLocalFunc("set_voucher", ussdHandlers.SetVoucher)
 
 	return ussdHandlers, nil
 }

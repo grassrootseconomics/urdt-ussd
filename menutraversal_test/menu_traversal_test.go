@@ -43,6 +43,39 @@ func extractPublicKey(response []byte) string {
 	return ""
 }
 
+// Extracts the balance value from the engine response.
+func extractBalance(response []byte) string {
+	// Regex to match "Balance: <amount> <symbol>" followed by a newline
+	re := regexp.MustCompile(`(?m)^Balance:\s+(\d+(\.\d+)?)\s+([A-Z]+)`)
+	match := re.FindSubmatch(response)
+	if match != nil {
+		return string(match[1]) + " " + string(match[3]) // "<amount> <symbol>"
+	}
+	return ""
+}
+
+// Extracts the Maximum amount value from the engine response.
+func extractMaxAmount(response []byte) string {
+	// Regex to match "Maximum amount: <amount>" followed by a newline
+	re := regexp.MustCompile(`(?m)^Maximum amount:\s+(\d+(\.\d+)?)`)
+	match := re.FindSubmatch(response)
+	if match != nil {
+		return string(match[1]) // "<amount>"
+	}
+	return ""
+}
+
+// Extracts the send amount value from the engine response.
+func extractSendAmount(response []byte) string {
+	// Regex to match the pattern "will receive X.XX SYM from"
+	re := regexp.MustCompile(`will receive (\d+\.\d{2}\s+[A-Z]+) from`)
+	match := re.FindSubmatch(response)
+	if match != nil {
+		return string(match[1]) // Returns "X.XX SYM"
+	}
+	return ""
+}
+
 func TestMain(m *testing.M) {
 	sessionID = GenerateSessionId()
 	defer func() {
@@ -154,6 +187,12 @@ func TestMainMenuHelp(t *testing.T) {
 				}
 
 				b := w.Bytes()
+				balance := extractBalance(b)
+
+				expectedContent := []byte(step.ExpectedContent)
+				expectedContent = bytes.Replace(expectedContent, []byte("{balance}"), []byte(balance), -1)
+
+				step.ExpectedContent = string(expectedContent)
 				match, err := step.MatchesExpectedContent(b)
 				if err != nil {
 					t.Fatalf("Error compiling regex for step '%s': %v", step.Input, err)
@@ -189,6 +228,12 @@ func TestMainMenuQuit(t *testing.T) {
 				}
 
 				b := w.Bytes()
+				balance := extractBalance(b)
+
+				expectedContent := []byte(step.ExpectedContent)
+				expectedContent = bytes.Replace(expectedContent, []byte("{balance}"), []byte(balance), -1)
+
+				step.ExpectedContent = string(expectedContent)
 				match, err := step.MatchesExpectedContent(b)
 				if err != nil {
 					t.Fatalf("Error compiling regex for step '%s': %v", step.Input, err)
@@ -225,8 +270,13 @@ func TestMyAccount_MyAddress(t *testing.T) {
 				}
 				b := w.Bytes()
 
+				balance := extractBalance(b)
 				publicKey := extractPublicKey(b)
-				expectedContent := bytes.Replace([]byte(step.ExpectedContent), []byte("{public_key}"), []byte(publicKey), -1)
+
+				expectedContent := []byte(step.ExpectedContent)
+				expectedContent = bytes.Replace(expectedContent, []byte("{balance}"), []byte(balance), -1)
+				expectedContent = bytes.Replace(expectedContent, []byte("{public_key}"), []byte(publicKey), -1)
+
 				step.ExpectedContent = string(expectedContent)
 				match, err := step.MatchesExpectedContent(b)
 				if err != nil {
@@ -234,6 +284,52 @@ func TestMyAccount_MyAddress(t *testing.T) {
 				}
 				if !match {
 					t.Fatalf("expected:\n\t%s\ngot:\n\t%s\n", expectedContent, b)
+				}
+			}
+		}
+	}
+}
+
+func TestMainMenuSend(t *testing.T) {
+	en, fn, _ := testutil.TestEngine(sessionID)
+	defer fn()
+	ctx := context.Background()
+	sessions := testData
+	for _, session := range sessions {
+		groups := driver.FilterGroupsByName(session.Groups, "send_with_invalid_inputs")
+		for _, group := range groups {
+			for _, step := range group.Steps {
+				cont, err := en.Exec(ctx, []byte(step.Input))
+				if err != nil {
+					t.Fatalf("Test case '%s' failed at input '%s': %v", group.Name, step.Input, err)
+					return
+				}
+				if !cont {
+					break
+				}
+				w := bytes.NewBuffer(nil)
+				if _, err := en.Flush(ctx, w); err != nil {
+					t.Fatalf("Test case '%s' failed during Flush: %v", group.Name, err)
+				}
+
+				b := w.Bytes()
+				balance := extractBalance(b)
+				max_amount := extractMaxAmount(b)
+				send_amount := extractSendAmount(b)
+
+				expectedContent := []byte(step.ExpectedContent)
+				expectedContent = bytes.Replace(expectedContent, []byte("{balance}"), []byte(balance), -1)
+				expectedContent = bytes.Replace(expectedContent, []byte("{max_amount}"), []byte(max_amount), -1)
+				expectedContent = bytes.Replace(expectedContent, []byte("{send_amount}"), []byte(send_amount), -1)
+				expectedContent = bytes.Replace(expectedContent, []byte("{session_id}"), []byte(sessionID), -1)
+
+				step.ExpectedContent = string(expectedContent)
+				match, err := step.MatchesExpectedContent(b)
+				if err != nil {
+					t.Fatalf("Error compiling regex for step '%s': %v", step.Input, err)
+				}
+				if !match {
+					t.Fatalf("expected:\n\t%s\ngot:\n\t%s\n", step.ExpectedContent, b)
 				}
 			}
 		}
@@ -265,6 +361,13 @@ func TestGroups(t *testing.T) {
 				t.Errorf("Test case '%s' failed during Flush: %v", tt.Name, err)
 			}
 			b := w.Bytes()
+			balance := extractBalance(b)
+
+			expectedContent := []byte(tt.ExpectedContent)
+			expectedContent = bytes.Replace(expectedContent, []byte("{balance}"), []byte(balance), -1)
+
+			tt.ExpectedContent = string(expectedContent)
+
 			match, err := tt.MatchesExpectedContent(b)
 			if err != nil {
 				t.Fatalf("Error compiling regex for step '%s': %v", tt.Input, err)
@@ -272,7 +375,6 @@ func TestGroups(t *testing.T) {
 			if !match {
 				t.Fatalf("expected:\n\t%s\ngot:\n\t%s\n", tt.ExpectedContent, b)
 			}
-
 		})
 	}
 }

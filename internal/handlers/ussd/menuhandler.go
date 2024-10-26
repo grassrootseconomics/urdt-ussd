@@ -22,6 +22,8 @@ import (
 	"git.grassecon.net/urdt/ussd/internal/handlers/server"
 	"git.grassecon.net/urdt/ussd/internal/utils"
 	"gopkg.in/leonelquinteros/gotext.v1"
+
+	"git.grassecon.net/urdt/ussd/internal/storage"
 )
 
 var (
@@ -188,33 +190,6 @@ func (h *Handlers) CreateAccount(ctx context.Context, sym string, input []byte) 
 	return res, nil
 }
 
-// SavePin persists the user's PIN choice into the filesystem
-func (h *Handlers) SavePin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
-	var res resource.Result
-	var err error
-
-	sessionId, ok := ctx.Value("SessionId").(string)
-	if !ok {
-		return res, fmt.Errorf("missing session")
-	}
-
-	flag_incorrect_pin, _ := h.flagManager.GetFlag("flag_incorrect_pin")
-	accountPIN := string(input)
-	// Validate that the PIN is a 4-digit number
-	if !isValidPIN(accountPIN) {
-		res.FlagSet = append(res.FlagSet, flag_incorrect_pin)
-		return res, nil
-	}
-
-	res.FlagReset = append(res.FlagReset, flag_incorrect_pin)
-	store := h.userdataStore
-	err = store.WriteEntry(ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(accountPIN))
-	if err != nil {
-		return res, err
-	}
-	return res, nil
-}
-
 func (h *Handlers) VerifyNewPin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	res := resource.Result{}
 	_, ok := ctx.Value("SessionId").(string)
@@ -233,6 +208,9 @@ func (h *Handlers) VerifyNewPin(ctx context.Context, sym string, input []byte) (
 	return res, nil
 }
 
+// SaveTemporaryPin saves the valid PIN input to the DATA_TEMPORARY_PIN
+// during the account creation process
+// and during the change PIN process
 func (h *Handlers) SaveTemporaryPin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
 	var err error
@@ -241,6 +219,7 @@ func (h *Handlers) SaveTemporaryPin(ctx context.Context, sym string, input []byt
 	if !ok {
 		return res, fmt.Errorf("missing session")
 	}
+
 	flag_incorrect_pin, _ := h.flagManager.GetFlag("flag_incorrect_pin")
 
 	accountPIN := string(input)
@@ -250,11 +229,15 @@ func (h *Handlers) SaveTemporaryPin(ctx context.Context, sym string, input []byt
 		res.FlagSet = append(res.FlagSet, flag_incorrect_pin)
 		return res, nil
 	}
+
+	res.FlagReset = append(res.FlagReset, flag_incorrect_pin)
+
 	store := h.userdataStore
 	err = store.WriteEntry(ctx, sessionId, utils.DATA_TEMPORARY_PIN, []byte(accountPIN))
 	if err != nil {
 		return res, err
 	}
+
 	return res, nil
 }
 
@@ -283,10 +266,10 @@ func (h *Handlers) ConfirmPinChange(ctx context.Context, sym string, input []byt
 	return res, nil
 }
 
-// VerifyPin checks whether the confirmation PIN is similar to the account PIN
-// If similar, it sets the USERFLAG_PIN_SET flag allowing the user
+// VerifyCreatePin checks whether the confirmation PIN is similar to the temporary PIN
+// If similar, it sets the USERFLAG_PIN_SET flag and writes the account PIN allowing the user
 // to access the main menu
-func (h *Handlers) VerifyPin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+func (h *Handlers) VerifyCreatePin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
 
 	flag_valid_pin, _ := h.flagManager.GetFlag("flag_valid_pin")
@@ -298,17 +281,22 @@ func (h *Handlers) VerifyPin(ctx context.Context, sym string, input []byte) (res
 		return res, fmt.Errorf("missing session")
 	}
 	store := h.userdataStore
-	AccountPin, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACCOUNT_PIN)
+	temporaryPin, err := store.ReadEntry(ctx, sessionId, utils.DATA_TEMPORARY_PIN)
 	if err != nil {
 		return res, err
 	}
 
-	if bytes.Equal(input, AccountPin) {
+	if bytes.Equal(input, temporaryPin) {
 		res.FlagSet = []uint32{flag_valid_pin}
 		res.FlagReset = []uint32{flag_pin_mismatch}
 		res.FlagSet = append(res.FlagSet, flag_pin_set)
 	} else {
 		res.FlagSet = []uint32{flag_pin_mismatch}
+	}
+
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(temporaryPin))
+	if err != nil {
+		return res, err
 	}
 
 	return res, nil
@@ -630,13 +618,11 @@ func (h *Handlers) ResetIncorrectYob(ctx context.Context, sym string, input []by
 	return res, nil
 }
 
-// CheckBalance retrieves the balance from the API using the "PublicKey" and sets
+// CheckBalance retrieves the balance of the active voucher and sets
 // the balance as the result content
 func (h *Handlers) CheckBalance(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
 	var err error
-
-	flag_api_error, _ := h.flagManager.GetFlag("flag_api_call_error")
 
 	sessionId, ok := ctx.Value("SessionId").(string)
 	if !ok {
@@ -648,23 +634,25 @@ func (h *Handlers) CheckBalance(ctx context.Context, sym string, input []byte) (
 	l.AddDomain("default")
 
 	store := h.userdataStore
-	publicKey, err := store.ReadEntry(ctx, sessionId, utils.DATA_PUBLIC_KEY)
+
+	// get the active sym and active balance
+	activeSym, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM)
+	if err != nil {
+		if db.IsNotFound(err) {
+			balance := "0.00"
+			res.Content = l.Get("Balance: %s\n", balance)
+			return res, nil
+		}
+
+		return res, err
+	}
+
+	activeBal, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_BAL)
 	if err != nil {
 		return res, err
 	}
 
-	balanceResponse, err := h.accountService.CheckBalance(ctx, string(publicKey))
-	if err != nil {
-		return res, nil
-	}
-	if !balanceResponse.Ok {
-		res.FlagSet = append(res.FlagSet, flag_api_error)
-		return res, nil
-	}
-	res.FlagReset = append(res.FlagReset, flag_api_error)
-	balance := balanceResponse.Result.Balance
-
-	res.Content = l.Get("Balance: %s\n", balance)
+	res.Content = l.Get("Balance: %s\n", fmt.Sprintf("%s %s", activeBal, activeSym))
 
 	return res, nil
 }
@@ -802,15 +790,13 @@ func (h *Handlers) MaxAmount(ctx context.Context, sym string, input []byte) (res
 		return res, fmt.Errorf("missing session")
 	}
 	store := h.userdataStore
-	publicKey, _ := store.ReadEntry(ctx, sessionId, utils.DATA_PUBLIC_KEY)
 
-	balanceResp, err := h.accountService.CheckBalance(ctx, string(publicKey))
+	activeBal, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_BAL)
 	if err != nil {
-		return res, nil
+		return res, err
 	}
-	balance := balanceResp.Result.Balance
 
-	res.Content = balance
+	res.Content = string(activeBal)
 
 	return res, nil
 }
@@ -819,54 +805,29 @@ func (h *Handlers) MaxAmount(ctx context.Context, sym string, input []byte) (res
 // it is not more than the current balance.
 func (h *Handlers) ValidateAmount(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
-	var err error
 
 	sessionId, ok := ctx.Value("SessionId").(string)
 	if !ok {
 		return res, fmt.Errorf("missing session")
 	}
-
 	flag_invalid_amount, _ := h.flagManager.GetFlag("flag_invalid_amount")
-	flag_api_error, _ := h.flagManager.GetFlag("flag_api_call_error")
-
 	store := h.userdataStore
-	publicKey, _ := store.ReadEntry(ctx, sessionId, utils.DATA_PUBLIC_KEY)
 
-	amountStr := string(input)
+	var balanceValue float64
 
-	balanceRes, err := h.accountService.CheckBalance(ctx, string(publicKey))
-	balanceStr := balanceRes.Result.Balance
-
-	if !balanceRes.Ok {
-		res.FlagSet = append(res.FlagSet, flag_api_error)
-		return res, nil
-	}
+	// retrieve the active balance
+	activeBal, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_BAL)
 	if err != nil {
 		return res, err
 	}
-	res.Content = balanceStr
-	res.FlagReset = append(res.FlagReset, flag_api_error)
-
-	// Parse the balance
-	balanceParts := strings.Split(balanceStr, " ")
-	if len(balanceParts) != 2 {
-		return res, fmt.Errorf("unexpected balance format: %s", balanceStr)
-	}
-	balanceValue, err := strconv.ParseFloat(balanceParts[0], 64)
+	balanceValue, err = strconv.ParseFloat(string(activeBal), 64)
 	if err != nil {
-		return res, fmt.Errorf("failed to parse balance: %v", err)
+		return res, err
 	}
 
-	// Extract numeric part from input
-	re := regexp.MustCompile(`^(\d+(\.\d+)?)\s*(?:CELO)?$`)
-	matches := re.FindStringSubmatch(strings.TrimSpace(amountStr))
-	if len(matches) < 2 {
-		res.FlagSet = append(res.FlagSet, flag_invalid_amount)
-		res.Content = amountStr
-		return res, nil
-	}
-
-	inputAmount, err := strconv.ParseFloat(matches[1], 64)
+	// Extract numeric part from the input amount
+	amountStr := strings.TrimSpace(string(input))
+	inputAmount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
 		res.FlagSet = append(res.FlagSet, flag_invalid_amount)
 		res.Content = amountStr
@@ -879,12 +840,14 @@ func (h *Handlers) ValidateAmount(ctx context.Context, sym string, input []byte)
 		return res, nil
 	}
 
-	res.Content = fmt.Sprintf("%.3f", inputAmount) // Format to 3 decimal places
-	err = store.WriteEntry(ctx, sessionId, utils.DATA_AMOUNT, []byte(amountStr))
+	// Format the amount with 2 decimal places before saving
+	formattedAmount := fmt.Sprintf("%.2f", inputAmount)
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_AMOUNT, []byte(formattedAmount))
 	if err != nil {
 		return res, err
 	}
 
+	res.Content = fmt.Sprintf("%s", formattedAmount)
 	return res, nil
 }
 
@@ -927,9 +890,16 @@ func (h *Handlers) GetAmount(ctx context.Context, sym string, input []byte) (res
 		return res, fmt.Errorf("missing session")
 	}
 	store := h.userdataStore
+
+	// retrieve the active symbol
+	activeSym, err := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM)
+	if err != nil {
+		return res, err
+	}
+
 	amount, _ := store.ReadEntry(ctx, sessionId, utils.DATA_AMOUNT)
 
-	res.Content = string(amount)
+	res.Content = fmt.Sprintf("%s %s", string(amount), string(activeSym))
 
 	return res, nil
 }
@@ -955,7 +925,9 @@ func (h *Handlers) InitiateTransaction(ctx context.Context, sym string, input []
 
 	recipient, _ := store.ReadEntry(ctx, sessionId, utils.DATA_RECIPIENT)
 
-	res.Content = l.Get("Your request has been sent. %s will receive %s from %s.", string(recipient), string(amount), string(sessionId))
+	activeSym, _ := store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM)
+
+	res.Content = l.Get("Your request has been sent. %s will receive %s %s from %s.", string(recipient), string(amount), string(activeSym), string(sessionId))
 
 	account_authorized_flag, err := h.flagManager.GetFlag("flag_account_authorized")
 	if err != nil {
@@ -1036,6 +1008,282 @@ func (h *Handlers) GetProfileInfo(ctx context.Context, sym string, input []byte)
 			name, gender, age, location, offerings,
 		)
 	}
+
+	return res, nil
+}
+
+// SetDefaultVoucher retrieves the current vouchers
+// and sets the first as the default voucher, if no active voucher is set
+func (h *Handlers) SetDefaultVoucher(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+	var err error
+	store := h.userdataStore
+
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return res, fmt.Errorf("missing session")
+	}
+
+	flag_no_active_voucher, _ := h.flagManager.GetFlag("flag_no_active_voucher")
+
+	// check if the user has an active sym
+	_, err = store.ReadEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM)
+
+	if err != nil {
+		if db.IsNotFound(err) {
+			publicKey, err := store.ReadEntry(ctx, sessionId, utils.DATA_PUBLIC_KEY)
+			if err != nil {
+				return res, nil
+			}
+
+			// Fetch vouchers from the API using the public key
+			vouchersResp, err := h.accountService.FetchVouchers(ctx, string(publicKey))
+			if err != nil {
+				return res, nil
+			}
+
+			// Return if there is no voucher
+			if len(vouchersResp.Result.Holdings) == 0 {
+				res.FlagSet = append(res.FlagSet, flag_no_active_voucher)
+				return res, nil
+			}
+
+			// Use only the first voucher
+			firstVoucher := vouchersResp.Result.Holdings[0]
+			defaultSym := firstVoucher.TokenSymbol
+			defaultBal := firstVoucher.Balance
+
+			// set the active symbol
+			err = store.WriteEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM, []byte(defaultSym))
+			if err != nil {
+				return res, err
+			}
+			// set the active balance
+			err = store.WriteEntry(ctx, sessionId, utils.DATA_ACTIVE_BAL, []byte(defaultBal))
+			if err != nil {
+				return res, err
+			}
+
+			return res, nil
+		}
+
+		return res, err
+	}
+
+	res.FlagReset = append(res.FlagReset, flag_no_active_voucher)
+
+	return res, nil
+}
+
+// CheckVouchers retrieves the token holdings from the API using the "PublicKey" and stores
+// them to gdbm
+func (h *Handlers) CheckVouchers(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return res, fmt.Errorf("missing session")
+	}
+
+	store := h.userdataStore
+	publicKey, err := store.ReadEntry(ctx, sessionId, utils.DATA_PUBLIC_KEY)
+	if err != nil {
+		return res, nil
+	}
+
+	// Fetch vouchers from the API using the public key
+	vouchersResp, err := h.accountService.FetchVouchers(ctx, string(publicKey))
+	if err != nil {
+		return res, nil
+	}
+
+	// process voucher data
+	voucherSymbolList, voucherBalanceList := ProcessVouchers(vouchersResp.Result.Holdings)
+
+	prefixdb := storage.NewSubPrefixDb(store, []byte("vouchers"))
+	err = prefixdb.Put(ctx, []byte("sym"), []byte(voucherSymbolList))
+	if err != nil {
+		return res, nil
+	}
+
+	err = prefixdb.Put(ctx, []byte("bal"), []byte(voucherBalanceList))
+	if err != nil {
+		return res, nil
+	}
+
+	return res, nil
+}
+
+// ProcessVouchers formats the holdings into symbol and balance lists.
+func ProcessVouchers(holdings []struct {
+	ContractAddress string `json:"contractAddress"`
+	TokenSymbol     string `json:"tokenSymbol"`
+	TokenDecimals   string `json:"tokenDecimals"`
+	Balance         string `json:"balance"`
+}) (string, string) {
+	var numberedSymbols, numberedBalances []string
+
+	for i, voucher := range holdings {
+		numberedSymbols = append(numberedSymbols, fmt.Sprintf("%d:%s", i+1, voucher.TokenSymbol))
+		numberedBalances = append(numberedBalances, fmt.Sprintf("%d:%s", i+1, voucher.Balance))
+	}
+
+	voucherSymbolList := strings.Join(numberedSymbols, "\n")
+	voucherBalanceList := strings.Join(numberedBalances, "\n")
+
+	return voucherSymbolList, voucherBalanceList
+}
+
+// GetVoucherList fetches the list of vouchers and formats them
+func (h *Handlers) GetVoucherList(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+
+	// Read vouchers from the store
+	store := h.userdataStore
+	prefixdb := storage.NewSubPrefixDb(store, []byte("vouchers"))
+
+	voucherData, err := prefixdb.Get(ctx, []byte("sym"))
+	if err != nil {
+		return res, nil
+	}
+
+	res.Content = string(voucherData)
+
+	return res, nil
+}
+
+// ViewVoucher retrieves the token holding and balance from the subprefixDB
+func (h *Handlers) ViewVoucher(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+	store := h.userdataStore
+
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return res, fmt.Errorf("missing session")
+	}
+
+	flag_incorrect_voucher, _ := h.flagManager.GetFlag("flag_incorrect_voucher")
+
+	inputStr := string(input)
+
+	if inputStr == "0" || inputStr == "99" {
+		res.FlagReset = append(res.FlagReset, flag_incorrect_voucher)
+		return res, nil
+	}
+
+	prefixdb := storage.NewSubPrefixDb(store, []byte("vouchers"))
+
+	// Retrieve the voucher symbol list
+	voucherSymbolList, err := prefixdb.Get(ctx, []byte("sym"))
+	if err != nil {
+		return res, fmt.Errorf("failed to retrieve voucher symbol list: %v", err)
+	}
+
+	// Retrieve the voucher balance list
+	voucherBalanceList, err := prefixdb.Get(ctx, []byte("bal"))
+	if err != nil {
+		return res, fmt.Errorf("failed to retrieve voucher balance list: %v", err)
+	}
+
+	// match the voucher symbol and balance with the input
+	matchedSymbol, matchedBalance := MatchVoucher(inputStr, string(voucherSymbolList), string(voucherBalanceList))
+
+	// If a match is found, write the temporary sym and balance
+	if matchedSymbol != "" && matchedBalance != "" {
+		err = store.WriteEntry(ctx, sessionId, utils.DATA_TEMPORARY_SYM, []byte(matchedSymbol))
+		if err != nil {
+			return res, err
+		}
+		err = store.WriteEntry(ctx, sessionId, utils.DATA_TEMPORARY_BAL, []byte(matchedBalance))
+		if err != nil {
+			return res, err
+		}
+
+		res.FlagReset = append(res.FlagReset, flag_incorrect_voucher)
+		res.Content = fmt.Sprintf("%s\n%s", matchedSymbol, matchedBalance)
+	} else {
+		res.FlagSet = append(res.FlagSet, flag_incorrect_voucher)
+	}
+
+	return res, nil
+}
+
+// MatchVoucher finds the matching voucher symbol and balance based on the input.
+func MatchVoucher(inputStr string, voucherSymbols, voucherBalances string) (string, string) {
+	// Split the lists into slices for processing
+	symbols := strings.Split(voucherSymbols, "\n")
+	balances := strings.Split(voucherBalances, "\n")
+
+	var matchedSymbol, matchedBalance string
+
+	for i, symbol := range symbols {
+		symbolParts := strings.SplitN(symbol, ":", 2)
+		if len(symbolParts) != 2 {
+			continue
+		}
+		voucherNum := symbolParts[0]
+		voucherSymbol := symbolParts[1]
+
+		// Check if input matches either the number or the symbol
+		if inputStr == voucherNum || strings.EqualFold(inputStr, voucherSymbol) {
+			matchedSymbol = voucherSymbol
+			// Ensure there's a corresponding balance
+			if i < len(balances) {
+				matchedBalance = strings.SplitN(balances[i], ":", 2)[1]
+			}
+			break
+		}
+	}
+
+	return matchedSymbol, matchedBalance
+}
+
+// SetVoucher retrieves the temporary sym and balance,
+// sets them as the active data and
+// clears the temporary data
+func (h *Handlers) SetVoucher(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+	var err error
+	store := h.userdataStore
+
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return res, fmt.Errorf("missing session")
+	}
+
+	// get the current temporary symbol
+	temporarySym, err := store.ReadEntry(ctx, sessionId, utils.DATA_TEMPORARY_SYM)
+	if err != nil {
+		return res, err
+	}
+	// get the current temporary balance
+	temporaryBal, err := store.ReadEntry(ctx, sessionId, utils.DATA_TEMPORARY_BAL)
+	if err != nil {
+		return res, err
+	}
+
+	// set the active symbol
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_ACTIVE_SYM, []byte(temporarySym))
+	if err != nil {
+		return res, err
+	}
+	// set the active balance
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_ACTIVE_BAL, []byte(temporaryBal))
+	if err != nil {
+		return res, err
+	}
+
+	// reset the temporary symbol
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_TEMPORARY_SYM, []byte(""))
+	if err != nil {
+		return res, err
+	}
+	// reset the temporary balance
+	err = store.WriteEntry(ctx, sessionId, utils.DATA_TEMPORARY_BAL, []byte(""))
+	if err != nil {
+		return res, err
+	}
+
+	res.Content = string(temporarySym)
 
 	return res, nil
 }

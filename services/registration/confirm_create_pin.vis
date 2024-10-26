@@ -1,4 +1,4 @@
-LOAD save_pin 0
+LOAD save_temporary_pin 6
 HALT
-LOAD verify_pin 8
+LOAD verify_create_pin 8
 INCMP account_creation *

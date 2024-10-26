@@ -5,7 +5,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -33,7 +33,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -42,7 +42,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -70,7 +70,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -79,7 +79,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -116,7 +116,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -125,7 +125,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -162,7 +162,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -171,7 +171,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -203,7 +203,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -212,7 +212,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -244,7 +244,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
                
             ]
@@ -254,7 +254,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -286,7 +286,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -295,7 +295,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -327,7 +327,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -336,7 +336,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -368,7 +368,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -377,7 +377,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -409,7 +409,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         },
@@ -418,7 +418,7 @@
             "steps": [
                 {
                     "input": "",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 },
                 {
                     "input": "3",
@@ -446,7 +446,7 @@
                 },
                 {
                     "input": "0",
-                    "expectedContent": "Balance: 0.003 CELO\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
+                    "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
             ]
         }

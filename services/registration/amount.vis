@@ -1,5 +1,6 @@
 LOAD reset_transaction_amount 0
 LOAD max_amount 10
+RELOAD max_amount
 MAP max_amount
 MOUT back 0
 HALT
@@ -10,5 +11,5 @@ CATCH invalid_amount flag_invalid_amount 1
 INCMP _ 0
 LOAD get_recipient 12
 LOAD get_sender 64
-LOAD get_amount 12
+LOAD get_amount 32
 INCMP transaction_pin *

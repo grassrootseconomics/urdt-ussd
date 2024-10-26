@@ -218,7 +218,7 @@ func TestSaveFamilyname(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-func TestSavePin(t *testing.T) {
+func TestSaveTemporaryPin(t *testing.T) {
 	fm, err := NewFlagManager(flagsPath)
 	mockStore := new(mocks.MockUserDataStore)
 	if err != nil {
@@ -260,10 +260,10 @@ func TestSavePin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			// Set up the expected behavior of the mock
-			mockStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(tt.input)).Return(nil)
+			mockStore.On("WriteEntry", ctx, sessionId, utils.DATA_TEMPORARY_PIN, []byte(tt.input)).Return(nil)
 
 			// Call the method
-			res, err := h.SavePin(ctx, "save_pin", tt.input)
+			res, err := h.SaveTemporaryPin(ctx, "save_pin", tt.input)
 
 			if err != nil {
 				t.Error(err)
@@ -481,37 +481,6 @@ func TestCheckIdentifier(t *testing.T) {
 	}
 }
 
-func TestMaxAmount(t *testing.T) {
-	mockStore := new(mocks.MockUserDataStore)
-	mockCreateAccountService := new(mocks.MockAccountService)
-
-	// Define test data
-	sessionId := "session123"
-	ctx := context.WithValue(context.Background(), "SessionId", sessionId)
-	publicKey := "0xcasgatweksalw1018221"
-
-	expectedBalance := &models.BalanceResponse{
-		Ok: true,
-	}
-
-	// Set up the expected behavior of the mock
-	mockStore.On("ReadEntry", ctx, sessionId, utils.DATA_PUBLIC_KEY).Return([]byte(publicKey), nil)
-	mockCreateAccountService.On("CheckBalance", publicKey).Return(expectedBalance, nil)
-
-	// Create the Handlers instance with the mock store
-	h := &Handlers{
-		userdataStore:  mockStore,
-		accountService: mockCreateAccountService,
-	}
-
-	// Call the method
-	res, _ := h.MaxAmount(ctx, "max_amount", []byte("check_balance"))
-
-	//Assert that the balance that was set as the result content is what was returned by  Check Balance
-	assert.Equal(t, expectedBalance.Result.Balance, res.Content)
-
-}
-
 func TestGetSender(t *testing.T) {
 	mockStore := new(mocks.MockUserDataStore)
 
@@ -532,26 +501,30 @@ func TestGetSender(t *testing.T) {
 }
 
 func TestGetAmount(t *testing.T) {
-	mockStore := new(mocks.MockUserDataStore)
+	mockDataStore := new(mocks.MockUserDataStore)
 
 	// Define test data
 	sessionId := "session123"
 	ctx := context.WithValue(context.Background(), "SessionId", sessionId)
-	Amount := "0.03CELO"
+	amount := "0.03"
+	activeSym := "SRF"
 
 	// Set up the expected behavior of the mock
-	mockStore.On("ReadEntry", ctx, sessionId, utils.DATA_AMOUNT).Return([]byte(Amount), nil)
+	mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_ACTIVE_SYM).Return([]byte(activeSym), nil)
+	mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_AMOUNT).Return([]byte(amount), nil)
 
 	// Create the Handlers instance with the mock store
 	h := &Handlers{
-		userdataStore: mockStore,
+		userdataStore: mockDataStore,
 	}
 
 	// Call the method
-	res, _ := h.GetAmount(ctx, "get_amount", []byte("Getting amount..."))
+	res, _ := h.GetAmount(ctx, "get_amount", []byte(""))
+
+	formattedAmount := fmt.Sprintf("%s %s", amount, activeSym)
 
 	//Assert that the retrieved amount is what was set as the content
-	assert.Equal(t, Amount, res.Content)
+	assert.Equal(t, formattedAmount, res.Content)
 
 }
 
@@ -980,7 +953,7 @@ func TestVerifyYob(t *testing.T) {
 	}
 }
 
-func TestVerifyPin(t *testing.T) {
+func TestVerifyCreatePin(t *testing.T) {
 	fm, err := NewFlagManager(flagsPath)
 
 	if err != nil {
@@ -1029,7 +1002,7 @@ func TestVerifyPin(t *testing.T) {
 		},
 	}
 
-	typ := utils.DATA_ACCOUNT_PIN
+	typ := utils.DATA_TEMPORARY_PIN
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1037,8 +1010,11 @@ func TestVerifyPin(t *testing.T) {
 			// Define expected interactions with the mock
 			mockDataStore.On("ReadEntry", ctx, sessionId, typ).Return([]byte(firstSetPin), nil)
 
+			// Set up the expected behavior of the mock
+			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACCOUNT_PIN, []byte(firstSetPin)).Return(nil)
+
 			// Call the method under test
-			res, err := h.VerifyPin(ctx, "verify_pin", []byte(tt.input))
+			res, err := h.VerifyCreatePin(ctx, "verify_create_pin", []byte(tt.input))
 
 			// Assert that no errors occurred
 			assert.NoError(t, err)
@@ -1317,16 +1293,18 @@ func TestInitiateTransaction(t *testing.T) {
 		input          []byte
 		Recipient      []byte
 		Amount         []byte
+		ActiveSym      []byte
 		status         string
 		expectedResult resource.Result
 	}{
 		{
 			name:      "Test initiate transaction",
-			Amount:    []byte("0.002 CELO"),
+			Amount:    []byte("0.002"),
+			ActiveSym: []byte("SRF"),
 			Recipient: []byte("0x12415ass27192"),
 			expectedResult: resource.Result{
 				FlagReset: []uint32{account_authorized_flag},
-				Content:   "Your request has been sent. 0x12415ass27192 will receive 0.002 CELO from 254712345678.",
+				Content:   "Your request has been sent. 0x12415ass27192 will receive 0.002 SRF from 254712345678.",
 			},
 		},
 	}
@@ -1335,6 +1313,7 @@ func TestInitiateTransaction(t *testing.T) {
 			// Define expected interactions with the mock
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_AMOUNT).Return(tt.Amount, nil)
 			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_RECIPIENT).Return(tt.Recipient, nil)
+			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_ACTIVE_SYM).Return(tt.ActiveSym, nil)
 
 			// Call the method under test
 			res, _ := h.InitiateTransaction(ctx, "transaction_reset_amount", tt.input)
@@ -1464,7 +1443,6 @@ func TestValidateAmount(t *testing.T) {
 		t.Logf(err.Error())
 	}
 	flag_invalid_amount, _ := fm.parser.GetFlag("flag_invalid_amount")
-	flag_api_error, _ := fm.GetFlag("flag_api_call_error")
 	mockDataStore := new(mocks.MockUserDataStore)
 	mockCreateAccountService := new(mocks.MockAccountService)
 
@@ -1478,92 +1456,59 @@ func TestValidateAmount(t *testing.T) {
 		flagManager:    fm.parser,
 	}
 	tests := []struct {
-		name            string
-		input           []byte
-		publicKey       []byte
-		balanceResponse *models.BalanceResponse
-		expectedResult  resource.Result
+		name           string
+		input          []byte
+		activeBal      []byte
+		balance        string
+		expectedResult resource.Result
 	}{
 		{
-			name:  "Test with valid amount",
-			input: []byte("0.001"),
-			balanceResponse: &models.BalanceResponse{
-				Ok: true,
-				Result: struct {
-					Balance string      `json:"balance"`
-					Nonce   json.Number `json:"nonce"`
-				}{
-					Balance: "0.003 CELO",
-					Nonce:   json.Number("0"),
-				},
-			},
-			publicKey: []byte("0xrqeqrequuq"),
+			name:      "Test with valid amount",
+			input:     []byte("4.10"),
+			activeBal: []byte("5"),
 			expectedResult: resource.Result{
-				Content:   "0.001",
-				FlagReset: []uint32{flag_api_error},
+				Content: "4.10",
 			},
 		},
 		{
-			name:  "Test with amount larger than balance",
-			input: []byte("0.02"),
-			balanceResponse: &models.BalanceResponse{
-				Ok: true,
-				Result: struct {
-					Balance string      `json:"balance"`
-					Nonce   json.Number `json:"nonce"`
-				}{
-					Balance: "0.003 CELO",
-					Nonce:   json.Number("0"),
-				},
-			},
-			publicKey: []byte("0xrqeqrequuq"),
+			name:      "Test with amount larger than active balance",
+			input:     []byte("5.02"),
+			activeBal: []byte("5"),
 			expectedResult: resource.Result{
-				FlagSet:   []uint32{flag_invalid_amount},
-				FlagReset: []uint32{flag_api_error},
-				Content:   "0.02",
+				FlagSet: []uint32{flag_invalid_amount},
+				Content: "5.02",
 			},
 		},
 		{
-			name:  "Test with invalid amount",
-			input: []byte("0.02ms"),
-			balanceResponse: &models.BalanceResponse{
-				Ok: true,
-				Result: struct {
-					Balance string      `json:"balance"`
-					Nonce   json.Number `json:"nonce"`
-				}{
-					Balance: "0.003 CELO",
-					Nonce:   json.Number("0"),
-				},
-			},
-			publicKey: []byte("0xrqeqrequuq"),
+			name:    "Test with invalid amount format",
+			input:   []byte("0.02ms"),
+			activeBal: []byte("5"),
 			expectedResult: resource.Result{
-				FlagSet:   []uint32{flag_invalid_amount},
-				FlagReset: []uint32{flag_api_error},
-				Content:   "0.02ms",
+				FlagSet: []uint32{flag_invalid_amount},
+				Content: "0.02ms",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Mock behavior for active balance retrieval
+			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_ACTIVE_BAL).Return(tt.activeBal, nil)
 
-			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_PUBLIC_KEY).Return(tt.publicKey, nil)
-			mockCreateAccountService.On("CheckBalance", string(tt.publicKey)).Return(tt.balanceResponse, nil)
+			// Mock behavior for storing the amount (if valid)
 			mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_AMOUNT, tt.input).Return(nil).Maybe()
 
 			// Call the method under test
 			res, _ := h.ValidateAmount(ctx, "test_validate_amount", tt.input)
 
-			// Assert that no errors occurred
+			// Assert no errors occurred
 			assert.NoError(t, err)
 
-			//Assert that the account created flag has been set to the result
-			assert.Equal(t, res, tt.expectedResult, "Expected result should be equal to the actual result")
+			// Assert the result matches the expected result
+			assert.Equal(t, tt.expectedResult, res, "Expected result should match actual result")
 
-			// Assert that expectations were met
+			// Assert all expectations were met
 			mockDataStore.AssertExpectations(t)
-
 		})
 	}
 }
@@ -1627,80 +1572,52 @@ func TestValidateRecipient(t *testing.T) {
 }
 
 func TestCheckBalance(t *testing.T) {
-	sessionId := "session123"
-	publicKey := "0X13242618721"
-	fm, _ := NewFlagManager(flagsPath)
-	flag_api_error, _ := fm.GetFlag("flag_api_call_error")
-
-	ctx := context.WithValue(context.Background(), "SessionId", sessionId)
-
 	tests := []struct {
 		name           string
-		balanceResonse *models.BalanceResponse
+		sessionId      string
+		publicKey      string
+		activeSym      string
+		activeBal      string
 		expectedResult resource.Result
+		expectError    bool
 	}{
 		{
-			name: "Test when checking a balance is not a success",
-			balanceResonse: &models.BalanceResponse{
-				Ok: false,
-				Result: struct {
-					Balance string      `json:"balance"`
-					Nonce   json.Number `json:"nonce"`
-				}{
-					Balance: "0.003 CELO",
-					Nonce:   json.Number("0"),
-				},
-			},
-			expectedResult: resource.Result{
-				FlagSet: []uint32{flag_api_error},
-			},
-		},
-		{
-			name: "Test when checking a balance is a success",
-			balanceResonse: &models.BalanceResponse{
-				Ok: true,
-				Result: struct {
-					Balance string      `json:"balance"`
-					Nonce   json.Number `json:"nonce"`
-				}{
-					Balance: "0.003 CELO",
-					Nonce:   json.Number("0"),
-				},
-			},
-			expectedResult: resource.Result{
-				Content:   "Balance: 0.003 CELO\n",
-				FlagReset: []uint32{flag_api_error},
-			},
+			name:           "User with active sym",
+			sessionId:      "session456",
+			publicKey:      "0X98765432109",
+			activeSym:      "ETH",
+			activeBal:      "1.5",
+			expectedResult: resource.Result{Content: "Balance: 1.5 ETH\n"},
+			expectError:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			mockDataStore := new(mocks.MockUserDataStore)
-			mockCreateAccountService := new(mocks.MockAccountService)
-			mockState := state.NewState(16)
+			mockAccountService := new(mocks.MockAccountService)
+			ctx := context.WithValue(context.Background(), "SessionId", tt.sessionId)
 
-			// Create the Handlers instance with the mock store
 			h := &Handlers{
 				userdataStore:  mockDataStore,
-				flagManager:    fm.parser,
-				st:             mockState,
-				accountService: mockCreateAccountService,
+				accountService: mockAccountService,
 			}
 
-			// Set up the expected behavior of the mock
-			mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_PUBLIC_KEY).Return([]byte(publicKey), nil)
-			mockCreateAccountService.On("CheckBalance", string(publicKey)).Return(tt.balanceResonse, nil)
+			// Mock for user with active sym
+			mockDataStore.On("ReadEntry", ctx, tt.sessionId, utils.DATA_ACTIVE_SYM).Return([]byte(tt.activeSym), nil)
+			mockDataStore.On("ReadEntry", ctx, tt.sessionId, utils.DATA_ACTIVE_BAL).Return([]byte(tt.activeBal), nil)
 
-			// Call the method
-			res, _ := h.CheckBalance(ctx, "check_balance", []byte(""))
+			res, err := h.CheckBalance(ctx, "check_balance", []byte(""))
 
-			// Assert that expectations were met
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResult, res, "Result should match expected output")
+			}
+
 			mockDataStore.AssertExpectations(t)
-
-			//Assert that the result set to content is what was expected
-			assert.Equal(t, res, tt.expectedResult, "Result should contain flags set according to user input")
+			mockAccountService.AssertExpectations(t)
 		})
 	}
 }
@@ -1844,42 +1761,6 @@ func TestVerifyNewPin(t *testing.T) {
 
 }
 
-func TestSaveTemporaryPIn(t *testing.T) {
-
-	fm, err := NewFlagManager(flagsPath)
-
-	if err != nil {
-		t.Logf(err.Error())
-	}
-
-	// Create a new instance of UserDataStore
-	mockStore := new(mocks.MockUserDataStore)
-
-	// Define test data
-	sessionId := "session123"
-	PIN := "1234"
-	ctx := context.WithValue(context.Background(), "SessionId", sessionId)
-
-	// Set up the expected behavior of the mock
-	mockStore.On("WriteEntry", ctx, sessionId, utils.DATA_TEMPORARY_PIN, []byte(PIN)).Return(nil)
-
-	// Create the Handlers instance with the mock store
-	h := &Handlers{
-		userdataStore: mockStore,
-		flagManager:   fm.parser,
-	}
-
-	// Call the method
-	res, err := h.SaveTemporaryPin(ctx, "save_temporary_pin", []byte(PIN))
-
-	// Assert results
-	assert.NoError(t, err)
-	assert.Equal(t, resource.Result{}, res)
-
-	// Assert all expectations were met
-	mockStore.AssertExpectations(t)
-}
-
 func TestConfirmPin(t *testing.T) {
 	sessionId := "session123"
 
@@ -1927,7 +1808,40 @@ func TestConfirmPin(t *testing.T) {
 
 		})
 	}
+}
 
+func TestSetVoucher(t *testing.T) {
+	mockDataStore := new(mocks.MockUserDataStore)
+
+	sessionId := "session123"
+	ctx := context.WithValue(context.Background(), "SessionId", sessionId)
+
+	temporarySym := []byte("tempSym")
+	temporaryBal := []byte("tempBal")
+
+	// Set expectations for the mock data store
+	mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_TEMPORARY_SYM).Return(temporarySym, nil)
+	mockDataStore.On("ReadEntry", ctx, sessionId, utils.DATA_TEMPORARY_BAL).Return(temporaryBal, nil)
+	mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACTIVE_SYM, temporarySym).Return(nil)
+	mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_ACTIVE_BAL, temporaryBal).Return(nil)
+	mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_TEMPORARY_SYM, []byte("")).Return(nil)
+	mockDataStore.On("WriteEntry", ctx, sessionId, utils.DATA_TEMPORARY_BAL, []byte("")).Return(nil)
+
+	h := &Handlers{
+		userdataStore: mockDataStore,
+	}
+
+	// Call the method under test
+	res, err := h.SetVoucher(ctx, "someSym", []byte{})
+
+	// Assert that no errors occurred
+	assert.NoError(t, err)
+
+	// Assert that the result content is correct
+	assert.Equal(t, string(temporarySym), res.Content)
+
+	// Assert that expectations were met
+	mockDataStore.AssertExpectations(t)
 }
 
 func TestFetchCustodialBalances(t *testing.T) {

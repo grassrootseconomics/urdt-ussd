@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"git.grassecon.net/urdt/ussd/config"
@@ -24,6 +25,7 @@ type AccountServiceInterface interface {
 	CreateAccount(ctx context.Context) (*api.OKResponse, error)
 	CheckAccountStatus(ctx context.Context, trackingId string) (*models.TrackStatusResponse, error)
 	TrackAccountStatus(ctx context.Context, publicKey string) (*api.OKResponse, error)
+	FetchVouchers(ctx context.Context, publicKey string) (*models.VoucherHoldingResponse, error)
 }
 
 type AccountService struct {
@@ -169,6 +171,23 @@ func (as *AccountService) CreateAccount(ctx context.Context) (*api.OKResponse, e
 	return &okResponse, nil
 }
 
+// FetchVouchers retrieves the token holdings for a given public key from the custodial holdings API endpoint
+// Parameters:
+//   - publicKey: The public key associated with the account.
+func (as *AccountService) FetchVouchers(ctx context.Context, publicKey string) (*models.VoucherHoldingResponse, error) {
+	file, err := os.Open("sample_tokens.json")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	var holdings models.VoucherHoldingResponse
+
+	if err := json.NewDecoder(file).Decode(&holdings); err != nil {
+		return nil, err
+	}
+	return &holdings, nil
+}
+
 func (tas *TestAccountService) CreateAccount(ctx context.Context) (*api.OKResponse, error) {
 	return &api.OKResponse{
 		Ok:          true,
@@ -224,4 +243,32 @@ func (tas *TestAccountService) CheckAccountStatus(ctx context.Context, trackingI
 		},
 	}
 	return trackResponse, nil
+}
+
+func (tas *TestAccountService) FetchVouchers(ctx context.Context, publicKey string) (*models.VoucherHoldingResponse, error) {
+	return &models.VoucherHoldingResponse{
+		Ok: true,
+		Result: struct {
+			Holdings []struct {
+				ContractAddress string `json:"contractAddress"`
+				TokenSymbol     string `json:"tokenSymbol"`
+				TokenDecimals   string `json:"tokenDecimals"`
+				Balance         string `json:"balance"`
+			} `json:"holdings"`
+		}{
+			Holdings: []struct {
+				ContractAddress string `json:"contractAddress"`
+				TokenSymbol     string `json:"tokenSymbol"`
+				TokenDecimals   string `json:"tokenDecimals"`
+				Balance         string `json:"balance"`
+			}{
+				{
+					ContractAddress: "0x6CC75A06ac72eB4Db2eE22F781F5D100d8ec03ee",
+					TokenSymbol:     "SRF",
+					TokenDecimals:   "6",
+					Balance:         "2745987",
+				},
+			},
+		},
+	}, nil
 }

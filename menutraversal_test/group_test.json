@@ -13,7 +13,7 @@
                 },
                 {
                     "input": "5",
-                    "expectedContent": "PIN Management\n1:Change PIN\n2:Reset other's PIN\n3:Guard my PIN\n0:Back"
+                    "expectedContent": "PIN Management\n1:Change PIN\n2:Reset other's PIN\n0:Back"
                 },
                 {
                     "input": "1",

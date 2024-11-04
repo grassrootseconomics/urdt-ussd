@@ -3,88 +3,50 @@ package testservice
 import (
 	"context"
 	"encoding/json"
-	"time"
 
-	"git.grassecon.net/urdt/ussd/internal/models"
-	"github.com/grassrootseconomics/eth-custodial/pkg/api"
+	"git.grassecon.net/urdt/ussd/models"
 	dataserviceapi "github.com/grassrootseconomics/ussd-data-service/pkg/api"
 )
 
 type TestAccountService struct {
 }
 
-func (tas *TestAccountService) CreateAccount(ctx context.Context) (*api.OKResponse, error) {
-	return &api.OKResponse{
-		Ok:          true,
-		Description: "Account creation succeeded",
-		Result: map[string]any{
-			"trackingId": "075ccc86-f6ef-4d33-97d5-e91cfb37aa0d",
-			"publicKey":  "0x623EFAFa8868df4B934dd12a8B26CB3Dd75A7AdD",
-		},
+func (tas *TestAccountService) CreateAccount(ctx context.Context) (*models.AccountResult, error) {
+	return &models.AccountResult {
+		TrackingId: "075ccc86-f6ef-4d33-97d5-e91cfb37aa0d",
+		PublicKey: "0x623EFAFa8868df4B934dd12a8B26CB3Dd75A7AdD",
 	}, nil
 }
 
-func (tas *TestAccountService) CheckBalance(ctx context.Context, publicKey string) (*models.BalanceResponse, error) {
-	balanceResponse := &models.BalanceResponse{
-		Ok: true,
-		Result: struct {
-			Balance string      `json:"balance"`
-			Nonce   json.Number `json:"nonce"`
-		}{
-			Balance: "0.003 CELO",
-			Nonce:   json.Number("0"),
-		},
+func (tas *TestAccountService) CheckBalance(ctx context.Context, publicKey string) (*models.BalanceResult, error) {
+	balanceResponse := &models.BalanceResult {
+		Balance: "0.003 CELO",
+		Nonce:   json.Number("0"),
 	}
-
 	return balanceResponse, nil
 }
 
-func (tas *TestAccountService) CheckAccountStatus(ctx context.Context, trackingId string) (*models.TrackStatusResponse, error) {
-	trackResponse := &models.TrackStatusResponse{
-		Ok: true,
-		Result: struct {
-			Transaction struct {
-				CreatedAt     time.Time   "json:\"createdAt\""
-				Status        string      "json:\"status\""
-				TransferValue json.Number "json:\"transferValue\""
-				TxHash        string      "json:\"txHash\""
-				TxType        string      "json:\"txType\""
-			}
-		}{
-			Transaction: models.Transaction{
-				CreatedAt:     time.Now(),
-				Status:        "SUCCESS",
-				TransferValue: json.Number("0.5"),
-				TxHash:        "0x123abc456def",
-				TxType:        "transfer",
-			},
-		},
-	}
-	return trackResponse, nil
-}
-
-func (tas *TestAccountService) TrackAccountStatus(ctx context.Context, publicKey string) (*api.OKResponse, error) {
-	return &api.OKResponse{
-		Ok:          true,
-		Description: "Account creation succeeded",
-		Result: map[string]any{
-			"active": true,
-		},
+func (tas *TestAccountService) TrackAccountStatus(ctx context.Context, publicKey string) (*models.TrackStatusResult, error) {
+	return &models.TrackStatusResult {
+		Active: true,
 	}, nil
 }
 
-func (tas *TestAccountService) FetchVouchers(ctx context.Context, publicKey string) (*models.VoucherHoldingResponse, error) {
-	return &models.VoucherHoldingResponse{
-		Ok: true,
-		Result: models.VoucherResult{
-			Holdings: []dataserviceapi.TokenHoldings{
-				{
-					ContractAddress: "0x6CC75A06ac72eB4Db2eE22F781F5D100d8ec03ee",
-					TokenSymbol:     "SRF",
-					TokenDecimals:   "6",
-					Balance:         "2745987",
-				},
-			},
+func (tas *TestAccountService) FetchVouchers(ctx context.Context, publicKey string) ([]dataserviceapi.TokenHoldings, error) {
+	return []dataserviceapi.TokenHoldings {
+		dataserviceapi.TokenHoldings {
+			ContractAddress: "0x6CC75A06ac72eB4Db2eE22F781F5D100d8ec03ee",
+			TokenSymbol:     "SRF",
+			TokenDecimals:   "6",
+			Balance:         "2745987",
 		},
-	}, nil
+	}, nil 
+}
+
+func (tas *TestAccountService) FetchTransactions(ctx context.Context, publicKey string) ([]dataserviceapi.Last10TxResponse, error) {
+	return []dataserviceapi.Last10TxResponse{}, nil
+}
+
+func(m TestAccountService) VoucherData(ctx context.Context, address string) (*models.VoucherDataResult, error) {
+	return &models.VoucherDataResult{}, nil
 }

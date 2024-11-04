@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/hex"
+	"strings"
 )
 
 func NormalizeHex(s string) (string, error) {
@@ -15,4 +16,16 @@ func NormalizeHex(s string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(r), nil
+}
+
+func IsSameHex(left string, right string) bool {
+	bl, err := NormalizeHex(left)
+	if err != nil {
+		return false
+	}
+	br, err := NormalizeHex(left)
+	if err != nil {
+		return false
+	}
+	return strings.Compare(bl, br) == 0
 }

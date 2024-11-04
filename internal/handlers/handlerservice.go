@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"context"
+
 	"git.defalsify.org/vise.git/asm"
 	"git.defalsify.org/vise.git/db"
 	"git.defalsify.org/vise.git/engine"
 	"git.defalsify.org/vise.git/persist"
 	"git.defalsify.org/vise.git/resource"
-	"git.grassecon.net/urdt/ussd/internal/handlers/server"
+
 	"git.grassecon.net/urdt/ussd/internal/handlers/ussd"
+	"git.grassecon.net/urdt/ussd/internal/utils"
+	"git.grassecon.net/urdt/ussd/remote"
 )
 
 type HandlerService interface {
@@ -28,20 +32,26 @@ type LocalHandlerService struct {
 	DbRs          *resource.DbResource
 	Pe            *persist.Persister
 	UserdataStore *db.Db
+	AdminStore    *utils.AdminStore
 	Cfg           engine.Config
 	Rs            resource.Resource
 }
 
-func NewLocalHandlerService(fp string, debug bool, dbResource *resource.DbResource, cfg engine.Config, rs resource.Resource) (*LocalHandlerService, error) {
+func NewLocalHandlerService(ctx context.Context, fp string, debug bool, dbResource *resource.DbResource, cfg engine.Config, rs resource.Resource) (*LocalHandlerService, error) {
 	parser, err := getParser(fp, debug)
 	if err != nil {
 		return nil, err
 	}
+	adminstore, err := utils.NewAdminStore(ctx, "admin_numbers")
+	if err != nil {
+		return nil, err
+	}
 	return &LocalHandlerService{
-		Parser: parser,
-		DbRs:   dbResource,
-		Cfg:    cfg,
-		Rs:     rs,
+		Parser:     parser,
+		DbRs:       dbResource,
+		AdminStore: adminstore,
+		Cfg:        cfg,
+		Rs:         rs,
 	}, nil
 }
 
@@ -53,8 +63,8 @@ func (ls *LocalHandlerService) SetDataStore(db *db.Db) {
 	ls.UserdataStore = db
 }
 
-func (ls *LocalHandlerService) GetHandler(accountService server.AccountServiceInterface) (*ussd.Handlers, error) {
-	ussdHandlers, err := ussd.NewHandlers(ls.Parser, *ls.UserdataStore,accountService)
+func (ls *LocalHandlerService) GetHandler(accountService remote.AccountServiceInterface) (*ussd.Handlers, error) {
+	ussdHandlers, err := ussd.NewHandlers(ls.Parser, *ls.UserdataStore, ls.AdminStore, accountService)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +108,13 @@ func (ls *LocalHandlerService) GetHandler(accountService server.AccountServiceIn
 	ls.DbRs.AddLocalFunc("get_vouchers", ussdHandlers.GetVoucherList)
 	ls.DbRs.AddLocalFunc("view_voucher", ussdHandlers.ViewVoucher)
 	ls.DbRs.AddLocalFunc("set_voucher", ussdHandlers.SetVoucher)
+	ls.DbRs.AddLocalFunc("reset_valid_pin", ussdHandlers.ResetValidPin)
+	ls.DbRs.AddLocalFunc("check_pin_mismatch", ussdHandlers.CheckPinMisMatch)
+	ls.DbRs.AddLocalFunc("validate_blocked_number", ussdHandlers.ValidateBlockedNumber)
+	ls.DbRs.AddLocalFunc("retrieve_blocked_number", ussdHandlers.RetrieveBlockedNumber)
+	ls.DbRs.AddLocalFunc("reset_unregistered_number", ussdHandlers.ResetUnregisteredNumber)
+	ls.DbRs.AddLocalFunc("reset_others_pin", ussdHandlers.ResetOthersPin)
+	ls.DbRs.AddLocalFunc("save_others_temporary_pin", ussdHandlers.SaveOthersTemporaryPin)
 
 	return ussdHandlers, nil
 }

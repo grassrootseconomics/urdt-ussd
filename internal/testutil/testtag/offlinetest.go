@@ -3,10 +3,10 @@
 package testtag
 
 import (
-	"git.grassecon.net/urdt/ussd/internal/handlers/server"
+	"git.grassecon.net/urdt/ussd/remote"
 	accountservice "git.grassecon.net/urdt/ussd/internal/testutil/testservice"
 )
 
 var (
-	AccountService server.AccountServiceInterface = &accountservice.TestAccountService{}
+	AccountService remote.AccountServiceInterface = &accountservice.TestAccountService{}
 )

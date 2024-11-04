@@ -1,4 +1,4 @@
-package utils
+package common
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type UserDataStore struct {
 	db.Db
 }
 
-// ReadEntry retrieves an entry from the store based on the provided parameters.
+// ReadEntry retrieves an entry to the userdata store.
 func (store *UserDataStore) ReadEntry(ctx context.Context, sessionId string, typ DataTyp) ([]byte, error) {
 	store.SetPrefix(db.DATATYPE_USERDATA)
 	store.SetSession(sessionId)
@@ -24,6 +24,8 @@ func (store *UserDataStore) ReadEntry(ctx context.Context, sessionId string, typ
 	return store.Get(ctx, k)
 }
 
+// WriteEntry adds an entry to the userdata store.
+// BUG: this uses sessionId twice
 func (store *UserDataStore) WriteEntry(ctx context.Context, sessionId string, typ DataTyp, value []byte) error {
 	store.SetPrefix(db.DATATYPE_USERDATA)
 	store.SetSession(sessionId)

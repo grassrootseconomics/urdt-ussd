@@ -1,4 +1,5 @@
 LOAD reset_account_authorized 16
+RELOAD reset_account_authorized
 LOAD reset_allow_update 0
 RELOAD reset_allow_update
 MOUT edit_name 1

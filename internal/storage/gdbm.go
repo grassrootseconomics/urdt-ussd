@@ -109,6 +109,7 @@ func(tdb *ThreadGdbmDb) Get(ctx context.Context, key []byte) ([]byte, error) {
 func(tdb *ThreadGdbmDb) Close() error {
 	tdb.reserve()
 	close(dbC[tdb.connStr])
+	delete(dbC, tdb.connStr)
 	err := tdb.db.Close()
 	tdb.db = nil
 	return err

@@ -1,5 +1,11 @@
-LOAD reset_incorrect 0
+LOAD reset_incorrect 6
+LOAD fetch_custodial_balances 0
+CATCH api_failure  flag_api_call_error  1
+MAP fetch_custodial_balances
 CATCH incorrect_pin flag_incorrect_pin 1
 CATCH pin_entry flag_account_authorized 0
-LOAD quit_with_balance 0
+MOUT back 0
+MOUT quit 9
 HALT
+INCMP _ 0
+INCMP quit 9

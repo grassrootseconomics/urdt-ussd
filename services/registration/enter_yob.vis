@@ -1,10 +1,10 @@
 CATCH incorrect_pin flag_incorrect_pin 1
-CATCH profile_update_success flag_allow_update 1
-LOAD save_yob 0
+CATCH update_yob flag_allow_update 1
 MOUT back 0
 HALT
 LOAD verify_yob 0
 CATCH incorrect_date_format flag_incorrect_date_format 1
+LOAD save_yob 0
 RELOAD save_yob
 INCMP _ 0
 INCMP pin_entry *

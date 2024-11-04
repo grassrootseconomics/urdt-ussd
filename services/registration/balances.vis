@@ -1,4 +1,5 @@
 LOAD reset_account_authorized 0
+RELOAD reset_account_authorized
 MOUT my_balance 1
 MOUT community_balance 2
 MOUT back 0

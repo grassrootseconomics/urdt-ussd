@@ -8,14 +8,16 @@ import (
 
 	"git.defalsify.org/vise.git/db"
 	fsdb "git.defalsify.org/vise.git/db/fs"
+	"git.defalsify.org/vise.git/db/postgres"
+	"git.defalsify.org/vise.git/logging"
 	"git.defalsify.org/vise.git/persist"
 	"git.defalsify.org/vise.git/resource"
-	"git.defalsify.org/vise.git/logging"
+	"git.grassecon.net/urdt/ussd/initializers"
 )
 
 var (
 	logg = logging.NewVanilla().WithDomain("storage")
-)	
+)
 
 type StorageService interface {
 	GetPersister(ctx context.Context) (*persist.Persister, error)
@@ -24,40 +26,86 @@ type StorageService interface {
 	EnsureDbDir() error
 }
 
-type MenuStorageService struct{
-	dbDir string
-	resourceDir string
+type MenuStorageService struct {
+	dbDir         string
+	resourceDir   string
 	resourceStore db.Db
-	stateStore db.Db
+	stateStore    db.Db
 	userDataStore db.Db
+}
+
+func buildConnStr() string {
+	host := initializers.GetEnv("DB_HOST", "localhost")
+	user := initializers.GetEnv("DB_USER", "postgres")
+	password := initializers.GetEnv("DB_PASSWORD", "")
+	dbName := initializers.GetEnv("DB_NAME", "")
+	port := initializers.GetEnv("DB_PORT", "5432")
+
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s",
+		user, password, host, port, dbName,
+	)
 }
 
 func NewMenuStorageService(dbDir string, resourceDir string) *MenuStorageService {
 	return &MenuStorageService{
-		dbDir: dbDir,
+		dbDir:       dbDir,
 		resourceDir: resourceDir,
 	}
 }
 
-func (ms *MenuStorageService) GetPersister(ctx context.Context) (*persist.Persister, error) {
-	ms.stateStore = NewThreadGdbmDb()
-	storeFile := path.Join(ms.dbDir, "state.gdbm")
-	err := ms.stateStore.Connect(ctx, storeFile)
+func (ms *MenuStorageService) getOrCreateDb(ctx context.Context, existingDb db.Db, fileName string) (db.Db, error) {
+	database, ok := ctx.Value("Database").(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to select the database")
+	}
+
+	if existingDb != nil {
+		return existingDb, nil
+	}
+
+	var newDb db.Db
+	var err error
+
+	if database == "postgres" {
+		newDb = postgres.NewPgDb()
+		connStr := buildConnStr()
+		err = newDb.Connect(ctx, connStr)
+	} else {
+		newDb = NewThreadGdbmDb()
+		storeFile := path.Join(ms.dbDir, fileName)
+		err = newDb.Connect(ctx, storeFile)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-	pr := persist.NewPersister(ms.stateStore)
-	logg.TraceCtxf(ctx, "menu storage service", "persist", pr, "store", ms.stateStore)
+
+	return newDb, nil
+}
+
+func (ms *MenuStorageService) GetPersister(ctx context.Context) (*persist.Persister, error) {
+	stateStore, err := ms.GetStateStore(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pr := persist.NewPersister(stateStore)
+	logg.TraceCtxf(ctx, "menu storage service", "persist", pr, "store", stateStore)
 	return pr, nil
 }
 
 func (ms *MenuStorageService) GetUserdataDb(ctx context.Context) (db.Db, error) {
-	ms.userDataStore = NewThreadGdbmDb()
-	storeFile := path.Join(ms.dbDir, "userdata.gdbm")
-	err := ms.userDataStore.Connect(ctx, storeFile)
+	if ms.userDataStore != nil {
+		return ms.userDataStore, nil
+	}
+
+	userDataStore, err := ms.getOrCreateDb(ctx, ms.userDataStore, "userdata.gdbm")
 	if err != nil {
 		return nil, err
 	}
+
+	ms.userDataStore = userDataStore
 	return ms.userDataStore, nil
 }
 
@@ -73,14 +121,15 @@ func (ms *MenuStorageService) GetResource(ctx context.Context) (resource.Resourc
 
 func (ms *MenuStorageService) GetStateStore(ctx context.Context) (db.Db, error) {
 	if ms.stateStore != nil {
-		panic("set up store when already exists")
+		return ms.stateStore, nil
 	}
-	ms.stateStore = NewThreadGdbmDb()
-	storeFile := path.Join(ms.dbDir, "state.gdbm")
-	err := ms.stateStore.Connect(ctx, storeFile)
+
+	stateStore, err := ms.getOrCreateDb(ctx, ms.stateStore, "state.gdbm")
 	if err != nil {
 		return nil, err
 	}
+
+	ms.stateStore = stateStore
 	return ms.stateStore, nil
 }
 

@@ -1,1 +1,1 @@
-Balance: {{.check_balance}}
+{{.check_balance}}

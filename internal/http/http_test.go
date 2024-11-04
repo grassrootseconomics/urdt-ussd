@@ -13,7 +13,7 @@ import (
 
 	"git.defalsify.org/vise.git/engine"
 	"git.grassecon.net/urdt/ussd/internal/handlers"
-	"git.grassecon.net/urdt/ussd/internal/mocks/httpmocks"
+	"git.grassecon.net/urdt/ussd/internal/testutil/mocks/httpmocks"
 )
 
 // invalidRequestType is a custom type to test invalid request scenarios

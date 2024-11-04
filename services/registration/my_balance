@@ -1,1 +1,1 @@
-Your balance is: 0.00 SRF
+{{.fetch_custodial_balances}}

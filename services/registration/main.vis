@@ -1,5 +1,10 @@
+LOAD set_default_voucher 8
+RELOAD set_default_voucher
 LOAD check_balance 64
 RELOAD check_balance
+LOAD check_vouchers 10
+RELOAD check_vouchers
+CATCH api_failure  flag_api_call_error  1
 MAP check_balance
 MOUT send 1
 MOUT vouchers 2
@@ -8,7 +13,7 @@ MOUT help 4
 MOUT quit 9
 HALT
 INCMP send 1
-INCMP quit 2
+INCMP my_vouchers 2
 INCMP my_account 3
 INCMP help 4
 INCMP quit 9

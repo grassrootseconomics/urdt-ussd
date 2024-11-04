@@ -1,8 +1,8 @@
 CATCH incorrect_pin flag_incorrect_pin 1
-CATCH profile_update_success flag_allow_update 1
-LOAD save_location 0
+CATCH update_location flag_allow_update 1
 MOUT back 0
 HALT
+LOAD save_location 0
 RELOAD save_location
 INCMP _ 0
 INCMP pin_entry *

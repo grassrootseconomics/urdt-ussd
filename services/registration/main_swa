@@ -1,1 +1,1 @@
-Salio: {{.check_balance}}
+{{.check_balance}}

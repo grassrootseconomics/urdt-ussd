@@ -117,7 +117,7 @@ func main() {
 	flag.UintVar(&port, "p", initializers.GetEnvUint("PORT", 7123), "http port")
 	flag.Parse()
 
-	logg.Infof("start command", "build", "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
+	logg.Infof("start command", "build", build, "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "Database", database)

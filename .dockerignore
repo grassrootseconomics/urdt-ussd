@@ -1,0 +1,13 @@
+/**
+!/cmd/africastalking
+!/common
+!/config
+!/initializers
+!/internal
+!/models
+!/remote
+!/services
+!/LICENSE
+!/README.md
+!/go.*
+!/.env

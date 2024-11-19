@@ -29,8 +29,10 @@ import (
 )
 
 var (
-	logg        = logging.NewVanilla()
-	scriptDir   = path.Join("services", "registration")
+	logg      = logging.NewVanilla()
+	scriptDir = path.Join("services", "registration")
+
+	build = "dev"
 )
 
 func init() {
@@ -115,7 +117,7 @@ func main() {
 	flag.UintVar(&port, "p", initializers.GetEnvUint("PORT", 7123), "http port")
 	flag.Parse()
 
-	logg.Infof("start command", "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
+	logg.Infof("start command", "build", "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "Database", database)
@@ -157,6 +159,10 @@ func main() {
 	}
 
 	lhs, err := handlers.NewLocalHandlerService(ctx, pfp, true, dbResource, cfg, rs)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
+	}
 	lhs.SetDataStore(&userdataStore)
 
 	if err != nil {

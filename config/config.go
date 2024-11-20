@@ -68,7 +68,7 @@ func LoadConfig() error {
 	VoucherHoldingsURL, _ = url.JoinPath(dataURLBase, voucherHoldingsPathPrefix)
 	VoucherTransfersURL, _ = url.JoinPath(dataURLBase, voucherTransfersPathPrefix)
 	VoucherDataURL, _ = url.JoinPath(dataURLBase, voucherDataPathPrefix)
-	CheckAliasURL, _ = url.JoinPath(custodialURLBase, AliasPrefix)
+	CheckAliasURL, _ = url.JoinPath(dataURLBase, AliasPrefix)
 
 	return nil
 }

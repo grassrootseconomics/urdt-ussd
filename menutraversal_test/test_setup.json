@@ -61,7 +61,7 @@
                     },
                     {
                         "input": "1",
-                        "expectedContent": "Enter recipient's phone number:\n0:Back"
+                        "expectedContent": "Enter recipient's phone number/address/alias:\n0:Back"
                     },
                     {
                         "input": "000",
@@ -69,7 +69,7 @@
                     },
                     {
                         "input": "1",
-                        "expectedContent": "Enter recipient's phone number:\n0:Back"
+                        "expectedContent": "Enter recipient's phone number/address/alias:\n0:Back"
                     },
                     {
                         "input": "0712345678",

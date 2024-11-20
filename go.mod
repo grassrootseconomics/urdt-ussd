@@ -12,7 +12,7 @@ require (
 	gopkg.in/leonelquinteros/gotext.v1 v1.3.1
 )
 
-require github.com/grassrootseconomics/ussd-data-service v0.0.0-20241003123429-4904b4438a3a // indirect
+require github.com/grassrootseconomics/ussd-data-service v1.2.0-beta // indirect
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

@@ -35,11 +35,16 @@ var (
 	errResponse    *api.ErrResponse
 )
 
-// Define the regex patterns as  constants
+// Define the regex patterns as constants
 const (
-	phoneRegex = `^(?:\+254|254|0)?((?:7[0-9]{8})|(?:1[01][0-9]{7}))$`
 	pinPattern = `^\d{4}$`
 )
+
+// isValidPIN checks whether the given input is a 4 digit number
+func isValidPIN(pin string) bool {
+	match, _ := regexp.MatchString(pinPattern, pin)
+	return match
+}
 
 // FlagManager handles centralized flag management
 type FlagManager struct {
@@ -93,17 +98,6 @@ func NewHandlers(appFlags *asm.FlagParser, userdataStore db.Db, adminstore *util
 		prefixDb:       prefixDb,
 	}
 	return h, nil
-}
-
-// isValidPIN checks whether the given input is a 4 digit number
-func isValidPIN(pin string) bool {
-	match, _ := regexp.MatchString(pinPattern, pin)
-	return match
-}
-
-func isValidPhoneNumber(phonenumber string) bool {
-	match, _ := regexp.MatchString(phoneRegex, phonenumber)
-	return match
 }
 
 func (h *Handlers) WithPersister(pe *persist.Persister) *Handlers {
@@ -877,7 +871,7 @@ func (h *Handlers) ValidateBlockedNumber(ctx context.Context, sym string, input 
 	}
 	blockedNumber := string(input)
 	_, err = store.ReadEntry(ctx, blockedNumber, common.DATA_PUBLIC_KEY)
-	if !isValidPhoneNumber(blockedNumber) {
+	if !common.IsValidPhoneNumber(blockedNumber) {
 		res.FlagSet = append(res.FlagSet, flag_unregistered_number)
 		return res, nil
 	}
@@ -898,10 +892,9 @@ func (h *Handlers) ValidateBlockedNumber(ctx context.Context, sym string, input 
 	return res, nil
 }
 
-// ValidateRecipient validates that the given input is a valid phone number.
+// ValidateRecipient validates that the given input is valid.
 func (h *Handlers) ValidateRecipient(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
-	var err error
 	store := h.userdataStore
 
 	sessionId, ok := ctx.Value("SessionId").(string)
@@ -909,13 +902,16 @@ func (h *Handlers) ValidateRecipient(ctx context.Context, sym string, input []by
 		return res, fmt.Errorf("missing session")
 	}
 
-	recipient := string(input)
-
 	flag_invalid_recipient, _ := h.flagManager.GetFlag("flag_invalid_recipient")
 	flag_invalid_recipient_with_invite, _ := h.flagManager.GetFlag("flag_invalid_recipient_with_invite")
+	flag_api_error, _ := h.flagManager.GetFlag("flag_api_call_error")
+
+	recipient := string(input)
 
 	if recipient != "0" {
-		if !isValidPhoneNumber(recipient) {
+		recipientType, err := common.CheckRecipient(recipient)
+		if err != nil {
+			// Invalid recipient format (not a phone number, address, or valid alias format)
 			res.FlagSet = append(res.FlagSet, flag_invalid_recipient)
 			res.Content = recipient
 
@@ -929,25 +925,54 @@ func (h *Handlers) ValidateRecipient(ctx context.Context, sym string, input []by
 			return res, err
 		}
 
-		publicKey, err := store.ReadEntry(ctx, recipient, common.DATA_PUBLIC_KEY)
-		if err != nil {
-			if db.IsNotFound(err) {
-				logg.InfoCtxf(ctx, "Unregistered number")
+		switch recipientType {
+		case "phone number":
+			// Check if the phone number is registered
+			publicKey, err := store.ReadEntry(ctx, recipient, common.DATA_PUBLIC_KEY)
+			if err != nil {
+				if db.IsNotFound(err) {
+					logg.InfoCtxf(ctx, "Unregistered phone number: %s", recipient)
+					res.FlagSet = append(res.FlagSet, flag_invalid_recipient_with_invite)
+					res.Content = recipient
+					return res, nil
+				}
 
-				res.FlagSet = append(res.FlagSet, flag_invalid_recipient_with_invite)
-				res.Content = recipient
-
-				return res, nil
+				logg.ErrorCtxf(ctx, "failed to read publicKey entry with", "key", common.DATA_PUBLIC_KEY, "error", err)
+				return res, err
 			}
 
-			logg.ErrorCtxf(ctx, "failed to read publicKey entry with", "key", common.DATA_PUBLIC_KEY, "error", err)
-			return res, err
-		}
+			// Save the publicKey as the recipient
+			err = store.WriteEntry(ctx, sessionId, common.DATA_RECIPIENT, publicKey)
+			if err != nil {
+				logg.ErrorCtxf(ctx, "failed to write recipient entry with", "key", common.DATA_RECIPIENT, "value", string(publicKey), "error", err)
+				return res, err
+			}
 
-		err = store.WriteEntry(ctx, sessionId, common.DATA_RECIPIENT, publicKey)
-		if err != nil {
-			logg.ErrorCtxf(ctx, "failed to write recipient entry with", "key", common.DATA_RECIPIENT, "value", string(publicKey), "error", err)
-			return res, nil
+		case "address":
+			// Save the valid Ethereum address as the recipient
+			err = store.WriteEntry(ctx, sessionId, common.DATA_RECIPIENT, []byte(recipient))
+			if err != nil {
+				logg.ErrorCtxf(ctx, "failed to write recipient entry with", "key", common.DATA_RECIPIENT, "value", recipient, "error", err)
+				return res, err
+			}
+
+		case "alias":
+			// Call the API to validate and retrieve the address for the alias
+			r, aliasErr := h.accountService.CheckAliasAddress(ctx, recipient)
+			if aliasErr != nil {
+				res.FlagSet = append(res.FlagSet, flag_api_error)
+				res.Content = recipient
+
+				logg.ErrorCtxf(ctx, "failed on CheckAliasAddress", "error", aliasErr)
+				return res, err
+			}
+
+			// Alias validation succeeded, save the Ethereum address
+			err = store.WriteEntry(ctx, sessionId, common.DATA_RECIPIENT, []byte(r.Address))
+			if err != nil {
+				logg.ErrorCtxf(ctx, "failed to write recipient entry with", "key", common.DATA_RECIPIENT, "value", r.Address, "error", err)
+				return res, err
+			}
 		}
 	}
 

@@ -47,3 +47,8 @@ func (m *MockAccountService) TokenTransfer(ctx context.Context, amount, from, to
 	args := m.Called()
 	return args.Get(0).(*models.TokenTransferResponse), args.Error(1)
 }
+
+func (m *MockAccountService) CheckAliasAddress(ctx context.Context, alias string) (*dataserviceapi.AliasAddress, error) {
+	args := m.Called()
+	return args.Get(0).(*dataserviceapi.AliasAddress), args.Error(1)
+}

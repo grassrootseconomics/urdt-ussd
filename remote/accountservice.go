@@ -24,6 +24,7 @@ type AccountServiceInterface interface {
 	FetchTransactions(ctx context.Context, publicKey string) ([]dataserviceapi.Last10TxResponse, error)
 	VoucherData(ctx context.Context, address string) (*models.VoucherDataResult, error)
 	TokenTransfer(ctx context.Context, amount, from, to, tokenAddress string) (*models.TokenTransferResponse, error)
+	CheckAliasAddress(ctx context.Context, alias string) (*dataserviceapi.AliasAddress, error)
 }
 
 type AccountService struct {
@@ -207,6 +208,26 @@ func (as *AccountService) TokenTransfer(ctx context.Context, amount, from, to, t
 	}
 
 	return &r, nil
+}
+
+// CheckAliasAddress retrieves the address of an alias from the API endpoint.
+// Parameters:
+//   - alias: The alias of the user.
+func (as *AccountService) CheckAliasAddress(ctx context.Context, alias string) (*dataserviceapi.AliasAddress, error) {
+	var r dataserviceapi.AliasAddress
+
+	ep, err := url.JoinPath(config.CheckAliasURL, alias)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", ep, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = doRequest(ctx, req, &r)
+	return &r, err
 }
 
 func doRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKResponse, error) {

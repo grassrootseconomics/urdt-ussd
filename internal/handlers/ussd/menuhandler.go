@@ -37,7 +37,7 @@ var (
 
 // Define the regex patterns as  constants
 const (
-	phoneRegex = `(\(\d{3}\)\s?|\d{3}[-.\s]?)?\d{3}[-.\s]?\d{4}`
+	phoneRegex = `^(?:\+254|254|0)?((?:7[0-9]{8})|(?:1[01][0-9]{7}))$`
 	pinPattern = `^\d{4}$`
 )
 

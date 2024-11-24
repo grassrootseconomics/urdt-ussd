@@ -11,5 +11,6 @@ INCMP main 0
 INCMP edit_profile 1
 INCMP change_language 2
 INCMP balances 3
+INCMP check_statement 4
 INCMP pin_management 5
 INCMP address 6

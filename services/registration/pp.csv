@@ -19,3 +19,5 @@ flag,flag_api_call_error,25,this is set when communication to an external servic
 flag,flag_no_active_voucher,26,this is set when a user does not have an active voucher
 flag,flag_admin_privilege,27,this is set when a user has admin privileges.
 flag,flag_unregistered_number,28,this is set when an unregistered phonenumber tries to perform an action
+flag,flag_no_transfers,29,this is set when a user does not have any transactions
+flag,flag_incorrect_statement,30,this is set when the selected statement is invalid

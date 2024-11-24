@@ -118,6 +118,9 @@ func (ls *LocalHandlerService) GetHandler(accountService remote.AccountServiceIn
 	ls.DbRs.AddLocalFunc("reset_others_pin", ussdHandlers.ResetOthersPin)
 	ls.DbRs.AddLocalFunc("save_others_temporary_pin", ussdHandlers.SaveOthersTemporaryPin)
 	ls.DbRs.AddLocalFunc("get_current_profile_info", ussdHandlers.GetCurrentProfileInfo)
+	ls.DbRs.AddLocalFunc("check_transactions", ussdHandlers.CheckTransactions)
+	ls.DbRs.AddLocalFunc("get_transactions", ussdHandlers.GetTransactionsList)
+	ls.DbRs.AddLocalFunc("view_statement", ussdHandlers.ViewTransactionStatement)
 
 	return ussdHandlers, nil
 }

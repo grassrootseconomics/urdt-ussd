@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // Define the regex patterns as constants
@@ -45,4 +46,18 @@ func CheckRecipient(recipient string) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid recipient: must be a phone number, address or alias")
+}
+
+// FormatPhoneNumber formats a Kenyan phone number to "254xxxxxxxx".
+func FormatPhoneNumber(phone string) (string, error) {
+	// Remove any leading "+" and spaces
+	phone = strings.TrimPrefix(phone, "+")
+	phone = strings.ReplaceAll(phone, " ", "")
+
+	// Replace leading "0" with "254" if present
+	if strings.HasPrefix(phone, "0") {
+		phone = "254" + phone[1:]
+	}
+
+	return phone, nil
 }

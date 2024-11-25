@@ -20,6 +20,7 @@ import (
 	"git.defalsify.org/vise.git/logging"
 	"git.defalsify.org/vise.git/resource"
 
+	"git.grassecon.net/urdt/ussd/common"
 	"git.grassecon.net/urdt/ussd/config"
 	"git.grassecon.net/urdt/ussd/initializers"
 	"git.grassecon.net/urdt/ussd/internal/handlers"
@@ -76,7 +77,13 @@ func (arp *atRequestParser) GetSessionId(rq any) (string, error) {
 		return "", fmt.Errorf("no phone number found")
 	}
 
-	return phoneNumber, nil
+	formattedNumber, err := common.FormatPhoneNumber(phoneNumber)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return "", fmt.Errorf("failed to format number")
+	}
+
+	return formattedNumber, nil
 }
 
 func (arp *atRequestParser) GetInput(rq any) ([]byte, error) {

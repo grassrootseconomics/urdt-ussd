@@ -11,7 +11,7 @@ import (
 const (
 	phoneRegex   = `^(?:\+254|254|0)?((?:7[0-9]{8})|(?:1[01][0-9]{7}))$`
 	addressRegex = `^0x[a-fA-F0-9]{40}$`
-	aliasRegex   = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+$`
+	aliasRegex   = `^[a-zA-Z0-9]+$`
 )
 
 // IsValidPhoneNumber checks if the given number is a valid phone number

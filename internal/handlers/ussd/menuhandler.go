@@ -927,8 +927,15 @@ func (h *Handlers) ValidateRecipient(ctx context.Context, sym string, input []by
 
 		switch recipientType {
 		case "phone number":
+			// format the phone number
+			formattedNumber, err := common.FormatPhoneNumber(recipient)
+			if err != nil {
+				logg.ErrorCtxf(ctx, "Failed to format the phone number: %s", recipient, "error", err)
+				return res, err
+			}
+
 			// Check if the phone number is registered
-			publicKey, err := store.ReadEntry(ctx, recipient, common.DATA_PUBLIC_KEY)
+			publicKey, err := store.ReadEntry(ctx, formattedNumber, common.DATA_PUBLIC_KEY)
 			if err != nil {
 				if db.IsNotFound(err) {
 					logg.InfoCtxf(ctx, "Unregistered phone number: %s", recipient)

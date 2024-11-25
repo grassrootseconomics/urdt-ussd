@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -48,8 +49,12 @@ func CheckRecipient(recipient string) (string, error) {
 	return "", fmt.Errorf("invalid recipient: must be a phone number, address or alias")
 }
 
-// FormatPhoneNumber formats a Kenyan phone number to "254xxxxxxxx".
+// FormatPhoneNumber formats a Kenyan phone number to "+254xxxxxxxx".
 func FormatPhoneNumber(phone string) (string, error) {
+	if !IsValidPhoneNumber(phone) {
+		return "", errors.New("invalid phone number")
+	}
+
 	// Remove any leading "+" and spaces
 	phone = strings.TrimPrefix(phone, "+")
 	phone = strings.ReplaceAll(phone, " ", "")
@@ -59,5 +64,10 @@ func FormatPhoneNumber(phone string) (string, error) {
 		phone = "254" + phone[1:]
 	}
 
-	return phone, nil
+	// Add "+" if not already present
+	if !strings.HasPrefix(phone, "254") {
+		return "", errors.New("unexpected format")
+	}
+
+	return "+" + phone, nil
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"git.defalsify.org/vise.git/db"
-	"git.defalsify.org/vise.git/lang"
 	gdbmdb "git.defalsify.org/vise.git/db/gdbm"
+	"git.defalsify.org/vise.git/lang"
 )
 
 var (
@@ -113,4 +113,9 @@ func(tdb *ThreadGdbmDb) Close() error {
 	err := tdb.db.Close()
 	tdb.db = nil
 	return err
+}
+
+func(tdb *ThreadGdbmDb) Dump(_ context.Context, _ []byte) (*db.Dumper, error) {
+	logg.Warnf("method not implemented for thread gdbm db")
+	return nil, nil
 }

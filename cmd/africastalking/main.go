@@ -45,14 +45,14 @@ type atRequestParser struct{}
 func (arp *atRequestParser) GetSessionId(rq any) (string, error) {
 	rqv, ok := rq.(*http.Request)
 	if !ok {
-		log.Println("got an invalid request:", rq)
+		log.Printf("got an invalid request:", rq)
 		return "", handlers.ErrInvalidRequest
 	}
 
 	// Capture body (if any) for logging
 	body, err := io.ReadAll(rqv.Body)
 	if err != nil {
-		log.Println("failed to read request body:", err)
+		log.Printf("failed to read request body:", err)
 		return "", fmt.Errorf("failed to read request body: %v", err)
 	}
 	// Reset the body for further reading
@@ -62,13 +62,13 @@ func (arp *atRequestParser) GetSessionId(rq any) (string, error) {
 	bodyLog := map[string]string{"body": string(body)}
 	logBytes, err := json.Marshal(bodyLog)
 	if err != nil {
-		log.Println("failed to marshal request body:", err)
+		log.Printf("failed to marshal request body:", err)
 	} else {
-		log.Println("Received request:", string(logBytes))
+		log.Printf("Received request:", string(logBytes))
 	}
 
 	if err := rqv.ParseForm(); err != nil {
-		log.Println("failed to parse form data: %v", err)
+		log.Printf("failed to parse form data: %v", err)
 		return "", fmt.Errorf("failed to parse form data: %v", err)
 	}
 

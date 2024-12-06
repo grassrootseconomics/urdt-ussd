@@ -18,6 +18,7 @@ type UserDataStore struct {
 
 // ReadEntry retrieves an entry to the userdata store.
 func (store *UserDataStore) ReadEntry(ctx context.Context, sessionId string, typ DataTyp) ([]byte, error) {
+	store.SetSession(sessionId)
 	store.SetPrefix(db.DATATYPE_USERDATA)
 	k := PackKey(typ, []byte(sessionId))
 	return store.Get(ctx, k)

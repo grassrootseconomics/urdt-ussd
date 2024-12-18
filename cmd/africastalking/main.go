@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +19,7 @@ import (
 	"git.defalsify.org/vise.git/logging"
 	"git.defalsify.org/vise.git/resource"
 
+	"git.grassecon.net/urdt/ussd/common"
 	"git.grassecon.net/urdt/ussd/config"
 	"git.grassecon.net/urdt/ussd/initializers"
 	"git.grassecon.net/urdt/ussd/internal/handlers"
@@ -27,6 +31,8 @@ import (
 var (
 	logg      = logging.NewVanilla()
 	scriptDir = path.Join("services", "registration")
+
+	build = "dev"
 )
 
 func init() {
@@ -38,9 +44,30 @@ type atRequestParser struct{}
 func (arp *atRequestParser) GetSessionId(rq any) (string, error) {
 	rqv, ok := rq.(*http.Request)
 	if !ok {
+		logg.Warnf("got an invalid request", "req", rq)
 		return "", handlers.ErrInvalidRequest
 	}
+
+	// Capture body (if any) for logging
+	body, err := io.ReadAll(rqv.Body)
+	if err != nil {
+		logg.Warnf("failed to read request body", "err", err)
+		return "", fmt.Errorf("failed to read request body: %v", err)
+	}
+	// Reset the body for further reading
+	rqv.Body = io.NopCloser(bytes.NewReader(body))
+
+	// Log the body as JSON
+	bodyLog := map[string]string{"body": string(body)}
+	logBytes, err := json.Marshal(bodyLog)
+	if err != nil {
+		logg.Warnf("failed to marshal request body", "err", err)
+	} else {
+		logg.Debugf("received request", "bytes", logBytes)
+	}
+
 	if err := rqv.ParseForm(); err != nil {
+		logg.Warnf("failed to parse form data", "err", err)
 		return "", fmt.Errorf("failed to parse form data: %v", err)
 	}
 
@@ -49,7 +76,13 @@ func (arp *atRequestParser) GetSessionId(rq any) (string, error) {
 		return "", fmt.Errorf("no phone number found")
 	}
 
-	return phoneNumber, nil
+	formattedNumber, err := common.FormatPhoneNumber(phoneNumber)
+	if err != nil {
+		logg.Warnf("failed to format phone number", "err", err)
+		return "", fmt.Errorf("failed to format number")
+	}
+
+	return formattedNumber, nil
 }
 
 func (arp *atRequestParser) GetInput(rq any) ([]byte, error) {
@@ -90,7 +123,7 @@ func main() {
 	flag.UintVar(&port, "p", initializers.GetEnvUint("PORT", 7123), "http port")
 	flag.Parse()
 
-	logg.Infof("start command", "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
+	logg.Infof("start command", "build", build, "dbdir", dbDir, "resourcedir", resourceDir, "outputsize", size)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "Database", database)
@@ -132,6 +165,10 @@ func main() {
 	}
 
 	lhs, err := handlers.NewLocalHandlerService(ctx, pfp, true, dbResource, cfg, rs)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
+	}
 	lhs.SetDataStore(&userdataStore)
 
 	if err != nil {
@@ -156,9 +193,13 @@ func main() {
 	rp := &atRequestParser{}
 	bsh := handlers.NewBaseSessionHandler(cfg, rs, stateStore, userdataStore, rp, hl)
 	sh := httpserver.NewATSessionHandler(bsh)
+
+	mux := http.NewServeMux()
+	mux.Handle(initializers.GetEnv("AT_ENDPOINT", "/"), sh)
+
 	s := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", host, strconv.Itoa(int(port))),
-		Handler: sh,
+		Handler: mux,
 	}
 	s.RegisterOnShutdown(sh.Shutdown)
 

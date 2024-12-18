@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"git.grassecon.net/urdt/ussd/internal/storage"
@@ -24,7 +25,11 @@ func ProcessVouchers(holdings []dataserviceapi.TokenHoldings) VoucherMetadata {
 
 	for i, h := range holdings {
 		symbols = append(symbols, fmt.Sprintf("%d:%s", i+1, h.TokenSymbol))
-		balances = append(balances, fmt.Sprintf("%d:%s", i+1, h.Balance))
+
+		// Scale down the balance
+		scaledBalance := ScaleDownBalance(h.Balance, h.TokenDecimals)
+
+		balances = append(balances, fmt.Sprintf("%d:%s", i+1, scaledBalance))
 		decimals = append(decimals, fmt.Sprintf("%d:%s", i+1, h.TokenDecimals))
 		addresses = append(addresses, fmt.Sprintf("%d:%s", i+1, h.ContractAddress))
 	}
@@ -37,33 +42,45 @@ func ProcessVouchers(holdings []dataserviceapi.TokenHoldings) VoucherMetadata {
 	return data
 }
 
-//func StoreVouchers(db storage.PrefixDb, data VoucherMetadata) {
-//		value, err := db.Put(ctx, []byte(key))
-//		if err != nil {
-//			return nil, fmt.Errorf("failed to get %s: %v", key, err)
-//		}
-//		data[key] = string(value)
-//	}
-//}
+func ScaleDownBalance(balance, decimals string) string {
+	// Convert balance and decimals to big.Float
+	bal := new(big.Float)
+	bal.SetString(balance)
+
+	dec, ok := new(big.Int).SetString(decimals, 10)
+	if !ok {
+		dec = big.NewInt(0) // Default to 0 decimals in case of conversion failure
+	}
+
+	divisor := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), dec, nil))
+	scaledBalance := new(big.Float).Quo(bal, divisor)
+
+	// Return the scaled balance without trailing decimals if it's an integer
+	if scaledBalance.IsInt() {
+		return scaledBalance.Text('f', 0)
+	}
+	return scaledBalance.Text('f', -1)
+}
 
 // GetVoucherData retrieves and matches voucher data
 func GetVoucherData(ctx context.Context, db storage.PrefixDb, input string) (*dataserviceapi.TokenHoldings, error) {
-	keys := []string{"sym", "bal", "deci", "addr"}
-	data := make(map[string]string)
+	keys := []DataTyp{DATA_VOUCHER_SYMBOLS, DATA_VOUCHER_BALANCES, DATA_VOUCHER_DECIMALS, DATA_VOUCHER_ADDRESSES}
+	data := make(map[DataTyp]string)
 
 	for _, key := range keys {
-		value, err := db.Get(ctx, []byte(key))
+		value, err := db.Get(ctx, ToBytes(key))
 		if err != nil {
-			return nil, fmt.Errorf("failed to get %s: %v", key, err)
+			return nil, fmt.Errorf("failed to get %s: %v", ToBytes(key), err)
 		}
 		data[key] = string(value)
 	}
 
 	symbol, balance, decimal, address := MatchVoucher(input,
-		data["sym"],
-		data["bal"],
-		data["deci"],
-		data["addr"])
+		data[DATA_VOUCHER_SYMBOLS],
+		data[DATA_VOUCHER_BALANCES],
+		data[DATA_VOUCHER_DECIMALS],
+		data[DATA_VOUCHER_ADDRESSES],
+	)
 
 	if symbol == "" {
 		return nil, nil
@@ -84,7 +101,7 @@ func MatchVoucher(input, symbols, balances, decimals, addresses string) (symbol,
 	decList := strings.Split(decimals, "\n")
 	addrList := strings.Split(addresses, "\n")
 
-	logg.Tracef("found" , "symlist", symList, "syms", symbols, "input", input)
+	logg.Tracef("found", "symlist", symList, "syms", symbols, "input", input)
 	for i, sym := range symList {
 		parts := strings.SplitN(sym, ":", 2)
 
@@ -135,7 +152,7 @@ func GetTemporaryVoucherData(ctx context.Context, store DataStore, sessionId str
 	return data, nil
 }
 
-// UpdateVoucherData sets the active voucher data and clears the temporary voucher data in the DataStore.
+// UpdateVoucherData updates the active voucher data in the DataStore.
 func UpdateVoucherData(ctx context.Context, store DataStore, sessionId string, data *dataserviceapi.TokenHoldings) error {
 	logg.TraceCtxf(ctx, "dtal", "data", data)
 	// Active voucher data entries

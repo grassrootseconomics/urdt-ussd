@@ -8,8 +8,9 @@ import (
 	"github.com/alecthomas/assert/v2"
 	"github.com/stretchr/testify/require"
 
-	"git.grassecon.net/urdt/ussd/internal/storage"
+	visedb "git.defalsify.org/vise.git/db"
 	memdb "git.defalsify.org/vise.git/db/mem"
+	"git.grassecon.net/urdt/ussd/internal/storage"
 	dataserviceapi "github.com/grassrootseconomics/ussd-data-service/pkg/api"
 )
 
@@ -59,13 +60,13 @@ func TestMatchVoucher(t *testing.T) {
 
 func TestProcessVouchers(t *testing.T) {
 	holdings := []dataserviceapi.TokenHoldings{
-		{ContractAddress: "0xd4c288865Ce", TokenSymbol: "SRF", TokenDecimals: "6", Balance: "100"},
-		{ContractAddress: "0x41c188d63Qa", TokenSymbol: "MILO", TokenDecimals: "4", Balance: "200"},
+		{ContractAddress: "0xd4c288865Ce", TokenSymbol: "SRF", TokenDecimals: "6", Balance: "100000000"},
+		{ContractAddress: "0x41c188d63Qa", TokenSymbol: "MILO", TokenDecimals: "4", Balance: "200000000"},
 	}
 
 	expectedResult := VoucherMetadata{
 		Symbols:   "1:SRF\n2:MILO",
-		Balances:  "1:100\n2:200",
+		Balances:  "1:100\n2:20000",
 		Decimals:  "1:6\n2:4",
 		Addresses: "1:0xd4c288865Ce\n2:0x41c188d63Qa",
 	}
@@ -83,19 +84,21 @@ func TestGetVoucherData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	spdb := storage.NewSubPrefixDb(db, []byte("vouchers"))
+
+	prefix := ToBytes(visedb.DATATYPE_USERDATA)
+	spdb := storage.NewSubPrefixDb(db, prefix)
 
 	// Test voucher data
-	mockData := map[string][]byte{
-		"sym":  []byte("1:SRF\n2:MILO"),
-		"bal":  []byte("1:100\n2:200"),
-		"deci": []byte("1:6\n2:4"),
-		"addr": []byte("1:0xd4c288865Ce\n2:0x41c188d63Qa"),
+	mockData := map[DataTyp][]byte{
+		DATA_VOUCHER_SYMBOLS:   []byte("1:SRF\n2:MILO"),
+		DATA_VOUCHER_BALANCES:  []byte("1:100\n2:200"),
+		DATA_VOUCHER_DECIMALS:  []byte("1:6\n2:4"),
+		DATA_VOUCHER_ADDRESSES: []byte("1:0xd4c288865Ce\n2:0x41c188d63Qa"),
 	}
 
 	// Put the data
 	for key, value := range mockData {
-		err = spdb.Put(ctx, []byte(key), []byte(value))
+		err = spdb.Put(ctx, []byte(ToBytes(key)), []byte(value))
 		if err != nil {
 			t.Fatal(err)
 		}

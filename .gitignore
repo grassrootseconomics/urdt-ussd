@@ -6,3 +6,4 @@ go.work*
 cmd/.state/
 id_*
 *.gdbm
+*.log

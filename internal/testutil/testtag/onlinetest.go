@@ -2,8 +2,8 @@
 
 package testtag
 
-import "git.grassecon.net/urdt/ussd/internal/handlers/server"
+import "git.grassecon.net/urdt/ussd/remote"
 
 var (
-	AccountService server.AccountServiceInterface
+	AccountService remote.AccountServiceInterface
 )

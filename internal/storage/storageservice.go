@@ -41,10 +41,13 @@ func buildConnStr() string {
 	dbName := initializers.GetEnv("DB_NAME", "")
 	port := initializers.GetEnv("DB_PORT", "5432")
 
-	return fmt.Sprintf(
+	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s",
 		user, password, host, port, dbName,
 	)
+	logg.Debugf("pg conn string", "conn", connString)
+
+	return connString
 }
 
 func NewMenuStorageService(dbDir string, resourceDir string) *MenuStorageService {

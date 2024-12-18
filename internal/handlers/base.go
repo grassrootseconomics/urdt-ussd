@@ -55,6 +55,9 @@ func(f *BaseSessionHandler) Process(rqs RequestSession) (RequestSession, error) 
 	}
 
 	f.hn = f.hn.WithPersister(rqs.Storage.Persister)
+	defer func() {
+		f.hn.Exit()
+	}()
 	eni := f.GetEngine(rqs.Config, f.rs, rqs.Storage.Persister)
 	en, ok := eni.(*engine.DefaultEngine)
 	if !ok {

@@ -1,8 +1,0 @@
-CATCH incorrect_pin flag_incorrect_pin 1
-CATCH update_offerings flag_allow_update 1
-LOAD save_offerings 0
-MOUT back 0
-HALT
-RELOAD save_offerings
-INCMP _ 0
-INCMP pin_entry *

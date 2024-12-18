@@ -1,8 +1,0 @@
-CATCH incorrect_pin flag_incorrect_pin 1
-CATCH update_familyname flag_allow_update 1
-MOUT back 0
-HALT
-LOAD save_familyname 0
-RELOAD save_familyname
-INCMP _ 0
-INCMP pin_entry *

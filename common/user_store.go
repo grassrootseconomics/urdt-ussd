@@ -20,7 +20,7 @@ type UserDataStore struct {
 func (store *UserDataStore) ReadEntry(ctx context.Context, sessionId string, typ DataTyp) ([]byte, error) {
 	store.SetPrefix(db.DATATYPE_USERDATA)
 	store.SetSession(sessionId)
-	k := PackKey(typ, []byte(sessionId))
+	k := ToBytes(typ)
 	return store.Get(ctx, k)
 }
 
@@ -29,6 +29,6 @@ func (store *UserDataStore) ReadEntry(ctx context.Context, sessionId string, typ
 func (store *UserDataStore) WriteEntry(ctx context.Context, sessionId string, typ DataTyp, value []byte) error {
 	store.SetPrefix(db.DATATYPE_USERDATA)
 	store.SetSession(sessionId)
-	k := PackKey(typ, []byte(sessionId))
+	k := ToBytes(typ)
 	return store.Put(ctx, k, value)
 }

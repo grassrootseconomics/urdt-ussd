@@ -7,11 +7,11 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Welcome to Sarafu Network\nPlease select a language\n0:english\n1:kiswahili"
+                        "expectedContent": "Welcome to Sarafu Network\nPlease select a language\n0:English\n1:Kiswahili"
                     },
                     {
                         "input": "0",
-                        "expectedContent": "Do you agree to terms and conditions?\n0:yes\n1:no"
+                        "expectedContent": "Do you agree to terms and conditions?\nhttps://grassecon.org/pages/terms-and-conditions\n\n0:Yes\n1:No"
                     },
                     {
                         "input": "0",
@@ -23,7 +23,7 @@
                     },
                     {
                         "input": "1111",
-                        "expectedContent": "The PIN is not a match. Try again\n1:retry\n9:Quit"
+                        "expectedContent": "The PIN is not a match. Try again\n1:Retry\n9:Quit"
                     },
                     {
                         "input": "1",
@@ -40,11 +40,11 @@
                 "steps": [
                     {
                         "input": "",
-                        "expectedContent": "Welcome to Sarafu Network\nPlease select a language\n0:english\n1:kiswahili"
+                        "expectedContent": "Welcome to Sarafu Network\nPlease select a language\n0:English\n1:Kiswahili"
                     },
                     {
                         "input": "0",
-                        "expectedContent": "Do you agree to terms and conditions?\n0:yes\n1:no"
+                        "expectedContent": "Do you agree to terms and conditions?\nhttps://grassecon.org/pages/terms-and-conditions\n\n0:Yes\n1:No"
                     },
                     {
                         "input": "1",
@@ -53,7 +53,7 @@
                 ]
             },
             {
-                "name": "send_with_invalid_inputs",
+                "name": "send_with_invite",
                 "steps": [
                     {
                         "input": "",
@@ -61,43 +61,23 @@
                     },
                     {
                         "input": "1",
-                        "expectedContent": "Enter recipient's phone number:\n0:Back"
+                        "expectedContent": "Enter recipient's phone number/address/alias:\n0:Back"
                     },
                     {
                         "input": "000",
-                        "expectedContent": "000 is not registered or invalid, please try again:\n1:retry\n9:Quit"
+                        "expectedContent": "000 is invalid, please try again:\n1:Retry\n9:Quit"
                     },
                     {
                         "input": "1",
-                        "expectedContent": "Enter recipient's phone number:\n0:Back"
+                        "expectedContent": "Enter recipient's phone number/address/alias:\n0:Back"
                     },
                     {
-                        "input": "065656",
-                        "expectedContent": "{max_amount}\nEnter amount:\n0:Back"
+                        "input": "0712345678",
+                        "expectedContent": "0712345678 is not registered, please try again:\n1:Retry\n2:Invite to Sarafu Network\n9:Quit"
                     },
                     {
-                        "input": "10000000",
-                        "expectedContent": "Amount 10000000 is invalid, please try again:\n1:retry\n9:Quit"
-                    },
-                    {
-                        "input": "1",
-                        "expectedContent": "{max_amount}\nEnter amount:\n0:Back"
-                    },
-                    {
-                        "input": "1.00",
-                        "expectedContent": "065656 will receive {send_amount} from {session_id}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
-                    },
-                    {
-                        "input": "1222",
-                        "expectedContent": "Incorrect pin\n1:retry\n9:Quit"
-                    },
-                    {
-                        "input": "1",
-                        "expectedContent": "065656 will receive {send_amount} from {session_id}\nPlease enter your PIN to confirm:\n0:Back\n9:Quit"
-                    },
-                    {
-                        "input": "1234",
-                        "expectedContent": "Your request has been sent. 065656 will receive {send_amount} from {session_id}."
+                        "input": "2",
+                        "expectedContent": "Your invite request for 0712345678 to Sarafu Network failed. Please try again later."
                     }
                 ]
             },
@@ -140,7 +120,7 @@
                     },
                     {
                         "input": "6",
-                        "expectedContent": "Address: {public_key}\n9:Quit"
+                        "expectedContent": "Address: {public_key}\n0:Back\n9:Quit"
                     },
                     {
                         "input": "9",

@@ -3,6 +3,7 @@ package menutraversaltest
 import (
 	"bytes"
 	"context"
+	"flag"
 	"log"
 	"math/rand"
 	"os"
@@ -15,13 +16,14 @@ import (
 )
 
 var (
-	testData      = driver.ReadData()
-	testStore     = ".test_state"
-	groupTestFile = "group_test.json"
-	sessionID     string
-	src           = rand.NewSource(42)
-	g             = rand.New(src)
+	testData  = driver.ReadData()
+	testStore = ".test_state"
+	sessionID string
+	src       = rand.NewSource(42)
+	g         = rand.New(src)
 )
+
+var groupTestFile = flag.String("test-file", "group_test.json", "The test file to use for running the group tests")
 
 func GenerateSessionId() string {
 	uu := uuid.NewGenWithOptions(uuid.WithRandomReader(g))
@@ -337,7 +339,7 @@ func TestMainMenuSend(t *testing.T) {
 }
 
 func TestGroups(t *testing.T) {
-	groups, err := driver.LoadTestGroups(groupTestFile)
+	groups, err := driver.LoadTestGroups(*groupTestFile)
 	if err != nil {
 		log.Fatalf("Failed to load test groups: %v", err)
 	}

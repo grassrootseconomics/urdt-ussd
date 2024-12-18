@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"git.defalsify.org/vise.git/db"
-	"git.defalsify.org/vise.git/lang"
 	gdbmdb "git.defalsify.org/vise.git/db/gdbm"
+	"git.defalsify.org/vise.git/lang"
 )
 
 var (
@@ -113,4 +113,10 @@ func(tdb *ThreadGdbmDb) Close() error {
 	err := tdb.db.Close()
 	tdb.db = nil
 	return err
+}
+
+func(tdb *ThreadGdbmDb) Dump(ctx context.Context, key []byte) (*db.Dumper, error) {
+	tdb.reserve()
+	defer tdb.release()
+	return tdb.db.Dump(ctx, key)
 }

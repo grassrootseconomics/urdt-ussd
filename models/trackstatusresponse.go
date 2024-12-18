@@ -14,5 +14,5 @@ type Transaction struct {
 }
 
 type TrackStatusResult struct {
-	Active	bool `json:"active"`
+	Active bool `json:"active"`
 }

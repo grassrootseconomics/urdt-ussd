@@ -1,20 +1,19 @@
 package remote
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 
-	dataserviceapi "github.com/grassrootseconomics/ussd-data-service/pkg/api"
-	"github.com/grassrootseconomics/eth-custodial/pkg/api"
 	"git.grassecon.net/urdt/ussd/config"
 	"git.grassecon.net/urdt/ussd/models"
-)
-
-var (
+	"github.com/grassrootseconomics/eth-custodial/pkg/api"
+	dataserviceapi "github.com/grassrootseconomics/ussd-data-service/pkg/api"
 )
 
 type AccountServiceInterface interface {
@@ -24,6 +23,8 @@ type AccountServiceInterface interface {
 	FetchVouchers(ctx context.Context, publicKey string) ([]dataserviceapi.TokenHoldings, error)
 	FetchTransactions(ctx context.Context, publicKey string) ([]dataserviceapi.Last10TxResponse, error)
 	VoucherData(ctx context.Context, address string) (*models.VoucherDataResult, error)
+	TokenTransfer(ctx context.Context, amount, from, to, tokenAddress string) (*models.TokenTransferResponse, error)
+	CheckAliasAddress(ctx context.Context, alias string) (*dataserviceapi.AliasAddress, error)
 }
 
 type AccountService struct {
@@ -51,7 +52,7 @@ func (as *AccountService) TrackAccountStatus(ctx context.Context, publicKey stri
 		return nil, err
 	}
 
-	_, err =  doCustodialRequest(ctx, req, &r)
+	_, err = doRequest(ctx, req, &r)
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +76,9 @@ func (as *AccountService) CheckBalance(ctx context.Context, publicKey string) (*
 		return nil, err
 	}
 
-	_, err = doCustodialRequest(ctx, req, &balanceResult)
+	_, err = doRequest(ctx, req, &balanceResult)
 	return &balanceResult, err
 }
-
 
 // CreateAccount creates a new account in the custodial system.
 // Returns:
@@ -93,8 +93,7 @@ func (as *AccountService) CreateAccount(ctx context.Context) (*models.AccountRes
 	if err != nil {
 		return nil, err
 	}
-
-	_, err =  doCustodialRequest(ctx, req, &r)
+	_, err = doRequest(ctx, req, &r)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +105,9 @@ func (as *AccountService) CreateAccount(ctx context.Context) (*models.AccountRes
 // Parameters:
 //   - publicKey: The public key associated with the account.
 func (as *AccountService) FetchVouchers(ctx context.Context, publicKey string) ([]dataserviceapi.TokenHoldings, error) {
-	var r []dataserviceapi.TokenHoldings
+	var r struct {
+		Holdings []dataserviceapi.TokenHoldings `json:"holdings"`
+	}
 
 	ep, err := url.JoinPath(config.VoucherHoldingsURL, publicKey)
 	if err != nil {
@@ -118,20 +119,21 @@ func (as *AccountService) FetchVouchers(ctx context.Context, publicKey string) (
 		return nil, err
 	}
 
-	_, err =  doDataRequest(ctx, req, r)
+	_, err = doRequest(ctx, req, &r)
 	if err != nil {
 		return nil, err
 	}
 
-	return r, nil
+	return r.Holdings, nil
 }
-
 
 // FetchTransactions retrieves the last 10 transactions for a given public key from the data indexer API endpoint
 // Parameters:
 //   - publicKey: The public key associated with the account.
 func (as *AccountService) FetchTransactions(ctx context.Context, publicKey string) ([]dataserviceapi.Last10TxResponse, error) {
-	var r []dataserviceapi.Last10TxResponse
+	var r struct {
+		Transfers []dataserviceapi.Last10TxResponse `json:"transfers"`
+	}
 
 	ep, err := url.JoinPath(config.VoucherTransfersURL, publicKey)
 	if err != nil {
@@ -143,20 +145,21 @@ func (as *AccountService) FetchTransactions(ctx context.Context, publicKey strin
 		return nil, err
 	}
 
-	_, err =  doDataRequest(ctx, req, r)
+	_, err = doRequest(ctx, req, &r)
 	if err != nil {
 		return nil, err
 	}
 
-	return r, nil
+	return r.Transfers, nil
 }
-
 
 // VoucherData retrieves voucher metadata from the data indexer API endpoint.
 // Parameters:
 //   - address: The voucher address.
 func (as *AccountService) VoucherData(ctx context.Context, address string) (*models.VoucherDataResult, error) {
-	var voucherDataResult models.VoucherDataResult
+	var r struct {
+		TokenDetails models.VoucherDataResult `json:"tokenDetails"`
+	}
 
 	ep, err := url.JoinPath(config.VoucherDataURL, address)
 	if err != nil {
@@ -168,22 +171,83 @@ func (as *AccountService) VoucherData(ctx context.Context, address string) (*mod
 		return nil, err
 	}
 
-	_, err = doCustodialRequest(ctx, req, &voucherDataResult)
-	return &voucherDataResult, err
+	_, err = doRequest(ctx, req, &r)
+	return &r.TokenDetails, err
+}
+
+// TokenTransfer creates a new token transfer in the custodial system.
+// Returns:
+//   - *models.TokenTransferResponse: A pointer to an TokenTransferResponse struct containing the trackingId.
+//     If there is an error during the request or processing, this will be nil.
+//   - error: An error if any occurred during the HTTP request, reading the response, or unmarshalling the JSON data.
+//     If no error occurs, this will be nil.
+func (as *AccountService) TokenTransfer(ctx context.Context, amount, from, to, tokenAddress string) (*models.TokenTransferResponse, error) {
+	var r models.TokenTransferResponse
+
+	// Create request payload
+	payload := map[string]string{
+		"amount":       amount,
+		"from":         from,
+		"to":           to,
+		"tokenAddress": tokenAddress,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("POST", config.TokenTransferURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, err
+	}
+	_, err = doRequest(ctx, req, &r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &r, nil
+}
+
+// CheckAliasAddress retrieves the address of an alias from the API endpoint.
+// Parameters:
+//   - alias: The alias of the user.
+func (as *AccountService) CheckAliasAddress(ctx context.Context, alias string) (*dataserviceapi.AliasAddress, error) {
+	var r dataserviceapi.AliasAddress
+
+	ep, err := url.JoinPath(config.CheckAliasURL, alias)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", ep, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = doRequest(ctx, req, &r)
+	return &r, err
 }
 
 func doRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKResponse, error) {
-	var okResponse  api.OKResponse
+	var okResponse api.OKResponse
 	var errResponse api.ErrResponse
 
+	req.Header.Set("Authorization", "Bearer "+config.BearerToken)
 	req.Header.Set("Content-Type", "application/json")
+
+	logRequestDetails(req)
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Printf("Failed to make %s request to endpoint: %s with reason: %s", req.Method, req.URL, err.Error())
 		errResponse.Description = err.Error()
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	log.Printf("Received response for %s: Status Code: %d | Content-Type: %s", req.URL, resp.StatusCode, resp.Header.Get("Content-Type"))
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -202,7 +266,6 @@ func doRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKRespons
 	if len(okResponse.Result) == 0 {
 		return nil, errors.New("Empty api result")
 	}
-	return &okResponse, nil
 
 	v, err := json.Marshal(okResponse.Result)
 	if err != nil {
@@ -213,12 +276,19 @@ func doRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKRespons
 	return &okResponse, err
 }
 
-func doCustodialRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKResponse, error) {
-	req.Header.Set("X-GE-KEY", config.CustodialAPIKey)
-	return doRequest(ctx, req, rcpt)
-}
+func logRequestDetails(req *http.Request) {
+	var bodyBytes []byte
+	contentType := req.Header.Get("Content-Type")
+	if req.Body != nil {
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			log.Printf("Error reading request body: %s", err)
+			return
+		}
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	} else {
+		bodyBytes = []byte("-")
+	}
 
-func doDataRequest(ctx context.Context, req *http.Request, rcpt any) (*api.OKResponse, error) {
-	req.Header.Set("X-GE-KEY", config.DataAPIKey)
-	return doRequest(ctx, req, rcpt)
+	log.Printf("URL: %s | Content-Type: %s | Method: %s| Request Body: %s", req.URL, contentType, req.Method, string(bodyBytes))
 }

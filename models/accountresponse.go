@@ -1,6 +1,6 @@
 package models
 
 type AccountResult struct {
-	PublicKey string `json:"publicKey"`
+	PublicKey  string `json:"publicKey"`
 	TrackingId string `json:"trackingId"`
 }

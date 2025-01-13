@@ -46,7 +46,7 @@ func (f *SessionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	rp := f.GetRequestParser()
 	cfg := f.GetConfig()
-	cfg.SessionId, err = rp.GetSessionId(req)
+	cfg.SessionId, err = rp.GetSessionId(req.Context(), req)
 	if err != nil {
 		logg.ErrorCtxf(rqs.Ctx, "", "header processing error", err)
 		f.WriteError(w, 400, err)

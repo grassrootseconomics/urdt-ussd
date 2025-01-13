@@ -7,7 +7,7 @@ import (
 	"git.defalsify.org/vise.git/logging"
 )
 
-// DataType is a subprefix value used in association with vise/db.DATATYPE_USERDATA. 
+// DataType is a subprefix value used in association with vise/db.DATATYPE_USERDATA.
 //
 // All keys are used only within the context of a single account. Unless otherwise specified, the user context is the session id.
 //
@@ -55,6 +55,10 @@ const (
 	DATA_ACTIVE_DECIMAL
 	// EVM address of the currently active voucher
 	DATA_ACTIVE_ADDRESS
+	//Holds count of the number of incorrect PIN attempts
+	DATA_INCORRECT_PIN_ATTEMPTS
+	//ISO 639 code for the selected language.
+	DATA_SELECTED_LANGUAGE_CODE
 )
 
 const (

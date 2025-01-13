@@ -54,7 +54,7 @@
                 },
                 {
                     "input": "1235",
-                    "expectedContent": "Incorrect PIN\n1:Retry\n9:Quit"
+                    "expectedContent": "Incorrect PIN. You have: 2 remaining attempt(s).\n1:Retry\n9:Quit"
                 },
                 {
                     "input": "1",
@@ -95,7 +95,7 @@
                 },
                 {
                     "input": "1235",
-                    "expectedContent": "Incorrect PIN\n1:Retry\n9:Quit"
+                    "expectedContent": "Incorrect PIN. You have: 2 remaining attempt(s).\n1:Retry\n9:Quit"
                 },
                 {
                     "input": "1",
@@ -107,8 +107,7 @@
                 },
                 {
                     "input": "0",
-                     "expectedContent": "Balances:\n1:My balance\n2:Community balance\n0:Back"
-                    
+                    "expectedContent": "Balances:\n1:My balance\n2:Community balance\n0:Back"
                 },
                 {
                     "input": "0",
@@ -141,7 +140,7 @@
                 },
                 {
                     "input": "1235",
-                    "expectedContent": "Incorrect PIN\n1:Retry\n9:Quit"
+                    "expectedContent": "Incorrect PIN. You have: 2 remaining attempt(s).\n1:Retry\n9:Quit"
                 },
                 {
                     "input": "1",
@@ -153,8 +152,7 @@
                 },
                 {
                     "input": "0",
-                     "expectedContent": "Balances:\n1:My balance\n2:Community balance\n0:Back"
-                    
+                    "expectedContent": "Balances:\n1:My balance\n2:Community balance\n0:Back"
                 },
                 {
                     "input": "0",
@@ -195,7 +193,7 @@
                 },
                 {
                     "input": "1",
-                    "expectedContent":  "Enter your year of birth\n0:Back"
+                    "expectedContent": "Enter your year of birth\n0:Back"
                 },
                 {
                     "input": "1940",
@@ -258,7 +256,6 @@
                     "input": "0",
                     "expectedContent": "{balance}\n\n1:Send\n2:My Vouchers\n3:My Account\n4:Help\n9:Quit"
                 }
-               
             ]
         },
         {
@@ -444,9 +441,3 @@
         }
     ]
 }
-      
-        
-       
-        
-    
-

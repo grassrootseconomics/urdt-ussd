@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logg = logging.NewVanilla().WithDomain("atserver")
+	logg = logging.NewVanilla().WithDomain("atserver").WithContextKey("SessionId").WithContextKey("AT-SessionId")
 )
 
 type ATSessionHandler struct {
@@ -34,7 +34,7 @@ func (ash *ATSessionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	rp := ash.GetRequestParser()
 	cfg := ash.GetConfig()
-	cfg.SessionId, err = rp.GetSessionId(req)
+	cfg.SessionId, err = rp.GetSessionId(req.Context(), req)
 	if err != nil {
 		logg.ErrorCtxf(rqs.Ctx, "", "header processing error", err)
 		ash.WriteError(w, 400, err)
@@ -48,7 +48,7 @@ func (ash *ATSessionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	rqs, err = ash.Process(rqs) 
+	rqs, err = ash.Process(rqs)
 	switch err {
 	case nil: // set code to 200 if no err
 		code = 200

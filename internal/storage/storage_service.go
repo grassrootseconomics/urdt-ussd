@@ -9,11 +9,12 @@ import (
 	"git.defalsify.org/vise.git/db"
 	fsdb "git.defalsify.org/vise.git/db/fs"
 	"git.defalsify.org/vise.git/db/postgres"
+	"git.defalsify.org/vise.git/lang"
 	"git.defalsify.org/vise.git/logging"
 	"git.defalsify.org/vise.git/persist"
 	"git.defalsify.org/vise.git/resource"
-	"git.grassecon.net/urdt/ussd/initializers"
 	gdbmstorage "git.grassecon.net/urdt/ussd/internal/storage/db/gdbm"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -24,68 +25,98 @@ type StorageService interface {
 	GetPersister(ctx context.Context) (*persist.Persister, error)
 	GetUserdataDb(ctx context.Context) db.Db
 	GetResource(ctx context.Context) (resource.Resource, error)
-	EnsureDbDir() error
 }
 
 type MenuStorageService struct {
-	dbDir         string
+	conn ConnData
 	resourceDir   string
+	poResource    resource.Resource
 	resourceStore db.Db
 	stateStore    db.Db
 	userDataStore db.Db
 }
 
-func buildConnStr() string {
-	host := initializers.GetEnv("DB_HOST", "localhost")
-	user := initializers.GetEnv("DB_USER", "postgres")
-	password := initializers.GetEnv("DB_PASSWORD", "")
-	dbName := initializers.GetEnv("DB_NAME", "")
-	port := initializers.GetEnv("DB_PORT", "5432")
-
-	connString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		user, password, host, port, dbName,
-	)
-	logg.Debugf("pg conn string", "conn", connString)
-
-	return connString
-}
-
-func NewMenuStorageService(dbDir string, resourceDir string) *MenuStorageService {
+func NewMenuStorageService(conn ConnData, resourceDir string) *MenuStorageService {
 	return &MenuStorageService{
-		dbDir:       dbDir,
+		conn: conn,
 		resourceDir: resourceDir,
 	}
 }
 
-func (ms *MenuStorageService) getOrCreateDb(ctx context.Context, existingDb db.Db, fileName string) (db.Db, error) {
-	database, ok := ctx.Value("Database").(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to select the database")
-	}
+func (ms *MenuStorageService) getOrCreateDb(ctx context.Context, existingDb db.Db, section string) (db.Db, error) {
+	var newDb db.Db
+	var err error
 
 	if existingDb != nil {
 		return existingDb, nil
 	}
 
-	var newDb db.Db
-	var err error
 
-	if database == "postgres" {
-		newDb = postgres.NewPgDb()
-		connStr := buildConnStr()
-		err = newDb.Connect(ctx, connStr)
-	} else {
+	connStr := ms.conn.String()
+	dbTyp := ms.conn.DbType()
+	if dbTyp == DBTYPE_POSTGRES {
+		// TODO: move to vise
+		err = ensureSchemaExists(ctx, ms.conn)
+		if err != nil {
+			return nil, err
+		}
+		newDb = postgres.NewPgDb().WithSchema(ms.conn.Domain())
+	} else if dbTyp == DBTYPE_GDBM {
+		err = ms.ensureDbDir()
+		if err != nil {
+			return nil, err
+		}
+		connStr = path.Join(connStr, section)
 		newDb = gdbmstorage.NewThreadGdbmDb()
-		storeFile := path.Join(ms.dbDir, fileName)
-		err = newDb.Connect(ctx, storeFile)
+	} else {
+		return nil, fmt.Errorf("unsupported connection string: '%s'\n", ms.conn.String())
 	}
-
+	logg.DebugCtxf(ctx, "connecting to db", "conn", connStr, "conndata", ms.conn)
+	err = newDb.Connect(ctx, connStr)
 	if err != nil {
 		return nil, err
 	}
 
 	return newDb, nil
+}
+
+// WithGettext triggers use of gettext for translation of templates and menus.
+//
+// The first language in `lns` will be used as default language, to resolve node keys to 
+// language strings.
+//
+// If `lns` is an empty array, gettext will not be used.
+func (ms *MenuStorageService) WithGettext(path string, lns []lang.Language) *MenuStorageService {
+	if len(lns) == 0 {
+		logg.Warnf("Gettext requested but no languages supplied")
+		return ms
+	}
+	rs := resource.NewPoResource(lns[0], path)
+
+	for _, ln := range(lns) {
+		rs = rs.WithLanguage(ln)
+	}
+
+	ms.poResource = rs
+
+	return ms
+}
+
+// ensureSchemaExists creates a new schema if it does not exist
+func ensureSchemaExists(ctx context.Context, conn ConnData) error {
+	h, err := pgxpool.New(ctx, conn.Path())
+	if err != nil {
+		return fmt.Errorf("failed to connect to the database: %w", err)
+	}
+	defer h.Close()
+
+	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", conn.Domain())
+	_, err = h.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	return nil
 }
 
 func (ms *MenuStorageService) GetPersister(ctx context.Context) (*persist.Persister, error) {
@@ -120,6 +151,11 @@ func (ms *MenuStorageService) GetResource(ctx context.Context) (resource.Resourc
 		return nil, err
 	}
 	rfs := resource.NewDbResource(ms.resourceStore)
+	if ms.poResource != nil {
+		logg.InfoCtxf(ctx, "using poresource for menu and template")
+		rfs.WithMenuGetter(ms.poResource.GetMenu)
+		rfs.WithTemplateGetter(ms.poResource.GetTemplate)
+	}
 	return rfs, nil
 }
 
@@ -137,8 +173,8 @@ func (ms *MenuStorageService) GetStateStore(ctx context.Context) (db.Db, error) 
 	return ms.stateStore, nil
 }
 
-func (ms *MenuStorageService) EnsureDbDir() error {
-	err := os.MkdirAll(ms.dbDir, 0700)
+func (ms *MenuStorageService) ensureDbDir() error {
+	err := os.MkdirAll(ms.conn.String(), 0700)
 	if err != nil {
 		return fmt.Errorf("state dir create exited with error: %v\n", err)
 	}

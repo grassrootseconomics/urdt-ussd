@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -161,7 +162,7 @@ func TestDefaultRequestParser_GetSessionId(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := parser.GetSessionId(tt.request)
+			id, err := parser.GetSessionId(context.Background(),tt.request)
 
 			if id != tt.expectedID {
 				t.Errorf("Expected session ID %s, got %s", tt.expectedID, id)

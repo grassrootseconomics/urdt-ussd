@@ -8,10 +8,12 @@ import (
 	"path"
 
 	"git.defalsify.org/vise.git/engine"
+	"git.defalsify.org/vise.git/lang"
 	"git.defalsify.org/vise.git/logging"
 	"git.defalsify.org/vise.git/resource"
 	"git.grassecon.net/urdt/ussd/config"
 	"git.grassecon.net/urdt/ussd/initializers"
+	"git.grassecon.net/urdt/ussd/internal/args"
 	"git.grassecon.net/urdt/ussd/internal/handlers"
 	"git.grassecon.net/urdt/ussd/internal/storage"
 	"git.grassecon.net/urdt/ussd/remote"
@@ -27,26 +29,53 @@ func init() {
 	initializers.LoadEnvVariables()
 }
 
+// TODO: external script automatically generate language handler list from select language vise code OR consider dynamic menu generation script possibility
 func main() {
 	config.LoadConfig()
 
-	var dbDir string
+	var connStr string
 	var size uint
 	var sessionId string
-	var database string
 	var engineDebug bool
+	var resourceDir string
+	var err error
+	var gettextDir string
+	var langs args.LangVar
+
+	flag.StringVar(&resourceDir, "resourcedir", scriptDir, "resource dir")
 	flag.StringVar(&sessionId, "session-id", "075xx2123", "session id")
-	flag.StringVar(&database, "db", "gdbm", "database to be used")
-	flag.StringVar(&dbDir, "dbdir", ".state", "database dir to read from")
+	flag.StringVar(&connStr, "c", "", "connection string")
 	flag.BoolVar(&engineDebug, "d", false, "use engine debug output")
 	flag.UintVar(&size, "s", 160, "max size of output")
+	flag.StringVar(&gettextDir, "gettext", "", "use gettext translations from given directory")
+	flag.Var(&langs, "language", "add symbol resolution for language")
 	flag.Parse()
 
-	logg.Infof("start command", "dbdir", dbDir, "outputsize", size)
+	if connStr == "" {
+		connStr = config.DbConn
+	}
+	connData, err := storage.ToConnData(connStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "connstr err: %v", err)
+		os.Exit(1)
+	}
+
+	logg.Infof("start command", "conn", connData, "outputsize", size)
+
+	if len(langs.Langs()) == 0 {
+		langs.Set(config.DefaultLanguage)
+	}
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "SessionId", sessionId)
-	ctx = context.WithValue(ctx, "Database", database)
+
+	ln, err := lang.LanguageFromCode(config.DefaultLanguage)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "default language set error: %v", err)
+		os.Exit(1)
+	}
+	ctx = context.WithValue(ctx, "Language", ln)
+
 	pfp := path.Join(scriptDir, "pp.csv")
 
 	cfg := engine.Config{
@@ -57,13 +86,10 @@ func main() {
 		MenuSeparator: menuSeparator,
 	}
 
-	resourceDir := scriptDir
-	menuStorageService := storage.NewMenuStorageService(dbDir, resourceDir)
+	menuStorageService := storage.NewMenuStorageService(connData, resourceDir)
 
-	err := menuStorageService.EnsureDbDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		os.Exit(1)
+	if gettextDir != "" {
+		menuStorageService = menuStorageService.WithGettext(gettextDir, langs.Langs())
 	}
 
 	rs, err := menuStorageService.GetResource(ctx)

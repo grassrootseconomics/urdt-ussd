@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 
@@ -10,7 +11,7 @@ import (
 type DefaultRequestParser struct {
 }
 
-func (rp *DefaultRequestParser) GetSessionId(rq any) (string, error) {
+func (rp *DefaultRequestParser) GetSessionId(ctx context.Context, rq any) (string, error) {
 	rqv, ok := rq.(*http.Request)
 	if !ok {
 		return "", handlers.ErrInvalidRequest
@@ -34,5 +35,3 @@ func (rp *DefaultRequestParser) GetInput(rq any) ([]byte, error) {
 	}
 	return v, nil
 }
-
-

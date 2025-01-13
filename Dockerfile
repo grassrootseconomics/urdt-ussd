@@ -19,6 +19,7 @@ WORKDIR /build
 RUN echo "Building on $BUILDPLATFORM, building for $TARGETPLATFORM"
 RUN go mod download
 RUN go build -tags logtrace -o ussd-africastalking -ldflags="-X main.build=${BUILD} -s -w" cmd/africastalking/main.go
+RUN go build -tags logtrace -o ussd-ssh -ldflags="-X main.build=${BUILD} -s -w" cmd/ssh/main.go
 
 FROM debian:bookworm-slim
 
@@ -30,6 +31,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /service
 
 COPY --from=build /build/ussd-africastalking .
+COPY --from=build /build/ussd-ssh .
 COPY --from=build /build/LICENSE .
 COPY --from=build /build/README.md .
 COPY --from=build /build/services ./services
@@ -37,5 +39,6 @@ COPY --from=build /build/.env.example .
 RUN mv .env.example .env
 
 EXPOSE 7123
+EXPOSE 7122
 
 CMD ["./ussd-africastalking"]

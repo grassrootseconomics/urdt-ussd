@@ -1,4 +1,4 @@
-package ussd
+package application
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	logg           = logging.NewVanilla().WithDomain("ussdmenuhandler").WithContextKey("session-id")
+	logg           = logging.NewVanilla().WithDomain("ussdmenuhandler").WithContextKey("SessionId")
 	scriptDir      = path.Join("services", "registration")
 	translationDir = path.Join(scriptDir, "locale")
 )
@@ -124,7 +124,7 @@ func (h *Handlers) Init(ctx context.Context, sym string, input []byte) (resource
 
 	sessionId, ok := ctx.Value("SessionId").(string)
 	if ok {
-		context.WithValue(ctx, "session-id", sessionId)
+		ctx = context.WithValue(ctx, "SessionId", sessionId)
 	}
 
 	flag_admin_privilege, _ := h.flagManager.GetFlag("flag_admin_privilege")
@@ -161,9 +161,12 @@ func (h *Handlers) SetLanguage(ctx context.Context, sym string, input []byte) (r
 		//Fallback to english instead?
 		code = "eng"
 	}
-	res.FlagSet = append(res.FlagSet, state.FLAG_LANG)
+	err := h.persistLanguageCode(ctx, code)
+	if err != nil {
+		return res, err
+	}
 	res.Content = code
-
+	res.FlagSet = append(res.FlagSet, state.FLAG_LANG)
 	languageSetFlag, err := h.flagManager.GetFlag("flag_language_set")
 	if err != nil {
 		logg.ErrorCtxf(ctx, "Error setting the languageSetFlag", "error", err)
@@ -734,11 +737,23 @@ func (h *Handlers) Authorize(ctx context.Context, sym string, input []byte) (res
 			if h.st.MatchFlag(flag_account_authorized, false) {
 				res.FlagReset = append(res.FlagReset, flag_incorrect_pin)
 				res.FlagSet = append(res.FlagSet, flag_allow_update, flag_account_authorized)
+				err := h.resetIncorrectPINAttempts(ctx, sessionId)
+				if err != nil {
+					return res, err
+				}
 			} else {
 				res.FlagSet = append(res.FlagSet, flag_allow_update)
 				res.FlagReset = append(res.FlagReset, flag_account_authorized)
+				err := h.resetIncorrectPINAttempts(ctx, sessionId)
+				if err != nil {
+					return res, err
+				}
 			}
 		} else {
+			err := h.incrementIncorrectPINAttempts(ctx, sessionId)
+			if err != nil {
+				return res, err
+			}
 			res.FlagSet = append(res.FlagSet, flag_incorrect_pin)
 			res.FlagReset = append(res.FlagReset, flag_account_authorized)
 			return res, nil
@@ -752,8 +767,34 @@ func (h *Handlers) Authorize(ctx context.Context, sym string, input []byte) (res
 // ResetIncorrectPin resets the incorrect pin flag  after a new PIN attempt.
 func (h *Handlers) ResetIncorrectPin(ctx context.Context, sym string, input []byte) (resource.Result, error) {
 	var res resource.Result
+	store := h.userdataStore
+
 	flag_incorrect_pin, _ := h.flagManager.GetFlag("flag_incorrect_pin")
+	flag_account_blocked, _ := h.flagManager.GetFlag("flag_account_blocked")
+
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return res, fmt.Errorf("missing session")
+	}
+
 	res.FlagReset = append(res.FlagReset, flag_incorrect_pin)
+
+	currentWrongPinAttempts, err := store.ReadEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS)
+	if err != nil {
+		if !db.IsNotFound(err) {
+			return res, err
+		}
+	}
+	pinAttemptsValue, _ := strconv.ParseUint(string(currentWrongPinAttempts), 0, 64)
+	remainingPINAttempts := common.AllowedPINAttempts - uint8(pinAttemptsValue)
+	if remainingPINAttempts == 0 {
+		res.FlagSet = append(res.FlagSet, flag_account_blocked)
+		return res, nil
+	}
+	if remainingPINAttempts < common.AllowedPINAttempts {
+		res.Content = strconv.Itoa(int(remainingPINAttempts))
+	}
+
 	return res, nil
 }
 
@@ -835,8 +876,18 @@ func (h *Handlers) QuitWithHelp(ctx context.Context, sym string, input []byte) (
 	l := gotext.NewLocale(translationDir, code)
 	l.AddDomain("default")
 
-	res.Content = l.Get("For more help,please call: 0757628885")
+	res.Content = l.Get("For more help, please call: 0757628885")
 	res.FlagReset = append(res.FlagReset, flag_account_authorized)
+	return res, nil
+}
+
+// ShowBlockedAccount displays a message after an account has been blocked and how to reach support.
+func (h *Handlers) ShowBlockedAccount(ctx context.Context, sym string, input []byte) (resource.Result, error) {
+	var res resource.Result
+	code := codeFromCtx(ctx)
+	l := gotext.NewLocale(translationDir, code)
+	l.AddDomain("default")
+	res.Content = l.Get("Your account has been locked. For help on how to unblock your account, contact support at: 0757628885")
 	return res, nil
 }
 
@@ -2074,4 +2125,69 @@ func (h *Handlers) UpdateAllProfileItems(ctx context.Context, sym string, input 
 		return res, err
 	}
 	return res, nil
+}
+
+// incrementIncorrectPINAttempts keeps track of the number of incorrect PIN attempts
+func (h *Handlers) incrementIncorrectPINAttempts(ctx context.Context, sessionId string) error {
+	var pinAttemptsCount uint8
+	store := h.userdataStore
+
+	currentWrongPinAttempts, err := store.ReadEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS)
+	if err != nil {
+		if db.IsNotFound(err) {
+			//First time Wrong PIN attempt: initialize with a count of 1
+			pinAttemptsCount = 1
+			err = store.WriteEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS, []byte(strconv.Itoa(int(pinAttemptsCount))))
+			if err != nil {
+				logg.ErrorCtxf(ctx, "failed to write incorrect PIN attempts ", "key", common.DATA_INCORRECT_PIN_ATTEMPTS, "value", currentWrongPinAttempts, "error", err)
+				return err
+			}
+			return nil
+		}
+	}
+	pinAttemptsValue, _ := strconv.ParseUint(string(currentWrongPinAttempts), 0, 64)
+	pinAttemptsCount = uint8(pinAttemptsValue) + 1
+
+	err = store.WriteEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS, []byte(strconv.Itoa(int(pinAttemptsCount))))
+	if err != nil {
+		logg.ErrorCtxf(ctx, "failed to write incorrect PIN attempts ", "key", common.DATA_INCORRECT_PIN_ATTEMPTS, "value", pinAttemptsCount, "error", err)
+		return err
+	}
+	return nil
+}
+
+// resetIncorrectPINAttempts resets the number of incorrect PIN attempts after a correct PIN entry
+func (h *Handlers) resetIncorrectPINAttempts(ctx context.Context, sessionId string) error {
+	store := h.userdataStore
+	currentWrongPinAttempts, err := store.ReadEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	currentWrongPinAttemptsCount, _ := strconv.ParseUint(string(currentWrongPinAttempts), 0, 64)
+	if currentWrongPinAttemptsCount <= uint64(common.AllowedPINAttempts) {
+		err = store.WriteEntry(ctx, sessionId, common.DATA_INCORRECT_PIN_ATTEMPTS, []byte(string("0")))
+		if err != nil {
+			logg.ErrorCtxf(ctx, "failed to reset incorrect PIN attempts ", "key", common.DATA_INCORRECT_PIN_ATTEMPTS, "value", common.AllowedPINAttempts, "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// persistLanguageCode persists the selected ISO 639 language code
+func (h *Handlers) persistLanguageCode(ctx context.Context, code string) error {
+	store := h.userdataStore
+	sessionId, ok := ctx.Value("SessionId").(string)
+	if !ok {
+		return fmt.Errorf("missing session")
+	}
+	err := store.WriteEntry(ctx, sessionId, common.DATA_SELECTED_LANGUAGE_CODE, []byte(code))
+	if err != nil {
+		logg.ErrorCtxf(ctx, "failed to persist language code", "key", common.DATA_SELECTED_LANGUAGE_CODE, "value", code, "error", err)
+		return err
+	}
+	return nil
 }

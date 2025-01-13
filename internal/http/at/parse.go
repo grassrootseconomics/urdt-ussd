@@ -15,16 +15,14 @@ import (
 )
 
 type ATRequestParser struct {
-	Context context.Context
 }
 
-func (arp *ATRequestParser) GetSessionId(rq any) (string, error) {
+func (arp *ATRequestParser) GetSessionId(ctx context.Context, rq any) (string, error) {
 	rqv, ok := rq.(*http.Request)
 	if !ok {
 		logg.Warnf("got an invalid request", "req", rq)
 		return "", handlers.ErrInvalidRequest
 	}
-
 	// Capture body (if any) for logging
 	body, err := io.ReadAll(rqv.Body)
 	if err != nil {
@@ -43,9 +41,9 @@ func (arp *ATRequestParser) GetSessionId(rq any) (string, error) {
 		decodedStr := string(logBytes)
 		sessionId, err := extractATSessionId(decodedStr)
 		if err != nil {
-			context.WithValue(arp.Context, "at-session-id", sessionId)
+			ctx = context.WithValue(ctx, "AT-SessionId", sessionId)
 		}
-		logg.Debugf("Received request:", decodedStr)
+		logg.DebugCtxf(ctx, "Received request:", decodedStr)
 	}
 
 	if err := rqv.ParseForm(); err != nil {
@@ -83,7 +81,8 @@ func (arp *ATRequestParser) GetInput(rq any) ([]byte, error) {
 		return nil, fmt.Errorf("no input found")
 	}
 
-	return []byte(parts[len(parts)-1]), nil
+	trimmedInput := strings.TrimSpace(parts[len(parts)-1])
+	return []byte(trimmedInput), nil
 }
 
 func parseQueryParams(query string) map[string]string {

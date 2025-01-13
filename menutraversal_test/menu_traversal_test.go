@@ -6,7 +6,6 @@ import (
 	"flag"
 	"log"
 	"math/rand"
-	"os"
 	"regexp"
 	"testing"
 
@@ -17,13 +16,15 @@ import (
 
 var (
 	testData  = driver.ReadData()
-	testStore = ".test_state"
 	sessionID string
 	src       = rand.NewSource(42)
 	g         = rand.New(src)
 )
 
 var groupTestFile = flag.String("test-file", "group_test.json", "The test file to use for running the group tests")
+var database = flag.String("db", "gdbm", "Specify the database (gdbm or postgres)")
+var connStr = flag.String("conn", ".test_state", "connection string")
+var dbSchema = flag.String("schema", "test", "Specify the database schema (default test)")
 
 func GenerateSessionId() string {
 	uu := uuid.NewGenWithOptions(uuid.WithRandomReader(g))
@@ -79,12 +80,15 @@ func extractSendAmount(response []byte) string {
 }
 
 func TestMain(m *testing.M) {
+	// Parse the flags
+	flag.Parse()
 	sessionID = GenerateSessionId()
-	defer func() {
-		if err := os.RemoveAll(testStore); err != nil {
-			log.Fatalf("Failed to delete state store %s: %v", testStore, err)
-		}
-	}()
+	// set the db
+	testutil.SetDatabase(*database, *connStr, *dbSchema)
+
+	// Cleanup the db after tests
+	defer testutil.CleanDatabase()
+
 	m.Run()
 }
 
@@ -121,7 +125,6 @@ func TestAccountCreationSuccessful(t *testing.T) {
 		}
 	}
 	<-eventChannel
-
 }
 
 func TestAccountRegistrationRejectTerms(t *testing.T) {
